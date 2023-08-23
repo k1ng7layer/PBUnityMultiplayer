@@ -1,0 +1,12 @@
+{
+  "name": "com.paatabaliashvili.PBUnityMultiplayer",
+  "version": "1.0.0",
+  "displayName": "PBUnityMultiplayer",
+  "description": "This package allows to create multiplayer games in Unity3D",
+  "unity" : "2021.3",
+  "author": {
+    "name": "Paata Baliashvili",
+    "email": "pl.baliashvili@gmail.com",
+    "url": ""
+  }
+}

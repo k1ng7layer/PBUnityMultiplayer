@@ -1,4 +1,4 @@
-﻿namespace PBUnityMultiplayer.Runtime.Core.ConnectionHandler
+﻿namespace PBUnityMultiplayer.Runtime.Core.NetworkManager
 {
     public enum ERunningMode
     {

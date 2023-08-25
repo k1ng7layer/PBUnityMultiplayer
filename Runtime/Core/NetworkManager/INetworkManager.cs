@@ -7,6 +7,6 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager
     public interface INetworkManager
     {
         void StartServer();
-        UniTask<ConnectResult> ConnectToServer(IPEndPoint serverEndPoint, string password);
+        UniTask<ConnectResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);
     }
 }

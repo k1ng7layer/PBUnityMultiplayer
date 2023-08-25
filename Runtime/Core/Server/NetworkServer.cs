@@ -7,11 +7,12 @@ using PBUdpTransport;
 using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration;
+using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 
-namespace PBUnityMultiplayer.Runtime.Core.NetworkServer
+namespace PBUnityMultiplayer.Runtime.Core.Server
 {
     internal class NetworkServer
     {
@@ -23,7 +24,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkServer
         private bool _isRunning;
 
         public Action<ENetworkMessageType, byte[]> OnMessageReceived;
-        public Func< byte[], EConnectionResult> OnConnectRequested;
+        public Func<byte[], NetworkClient, AuthenticateResult> OnClientConnected;
 
         public bool useApproval;
 
@@ -125,37 +126,64 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkServer
         {
             var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
 
-            if (messageType == ENetworkMessageType.ConnectionRequest && useApproval)
+            switch (messageType)
             {
-                var result = OnConnectRequested(incomePendingMessage.Payload);
-                
-                if (result == EConnectionResult.Success)
-                {
-                    var byteReader = new ByteReader(incomePendingMessage.Payload);
-                    var playerId = byteReader.ReadInt32();
-                    var playerIpString = byteReader.ReadString();
-                    var playerPort = byteReader.ReadInt32();
-                    
-                    var parseResult = IPAddress.TryParse(playerIpString, out var ipResult);
-                    
-                    if(!parseResult)
-                        return;
+                case ENetworkMessageType.ConnectionRequest:
+                    HandleNewConnection(incomePendingMessage);
+                    break;
+                case ENetworkMessageType.ClientDisconnected:
+                    break;
+                case ENetworkMessageType.ClientConnected:
+                    break;
+                case ENetworkMessageType.ClientReconnected:
+                    break;
+                case ENetworkMessageType.Custom:
+                    break;
+            }
+        }
 
-                    var remoteEndpoint = new IPEndPoint(ipResult, playerPort);
+        private void HandleNewConnection(IncomePendingMessage incomePendingMessage)
+        {
+            var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
+
+            if (messageType == ENetworkMessageType.ConnectionRequest)
+            {
+                var byteReader = new ByteReader(incomePendingMessage.Payload);
+                var playerId = byteReader.ReadInt32();
+                var playerIpString = byteReader.ReadString(out var strSize);
+                var playerPort = byteReader.ReadInt32();
                     
-                    var networkClient = new NetworkClient(playerId, remoteEndpoint);
+                var parseResult = IPAddress.TryParse(playerIpString, out var ipResult);
                     
-                    _networkClients.Add(networkClient.Id, networkClient);
+                if(!parseResult)
+                    return;
+
+                var remoteEndpoint = new IPEndPoint(ipResult, playerPort);
+                    
+                var networkClient = new NetworkClient(playerId, remoteEndpoint);
+                
+                var length = incomePendingMessage.Payload.Length - 8 - strSize;
+                var connectionPayload = new byte[length];
+                
+                Buffer.BlockCopy(incomePendingMessage.Payload, 8 + strSize, connectionPayload, 0, length);
+                
+                var authenticateResult = OnClientConnected.Invoke(connectionPayload, networkClient);
+
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)authenticateResult.ConnectionResult);
+                byteWriter.AddString(authenticateResult.Message);
+                
+                switch (authenticateResult.ConnectionResult)
+                {
+                    case EConnectionResult.Success:
+                        break;
+                    case EConnectionResult.Reject:
+                        _networkClients.Remove(networkClient.Id);
+                        break;
                 }
                 
-                var byteWriter = new ByteWriter();
-                byteWriter.AddUshort((ushort)result);
-                byteWriter.AddUshort((ushort)result);
-                
-                Send(byteWriter.Data, incomePendingMessage.RemoteEndPoint, ESendMode.Reliable);
+                Send(byteWriter.Data, networkClient, ESendMode.Reliable);
             }
-            
-            OnMessageReceived?.Invoke(messageType, incomePendingMessage.Payload);
         }
     }
 }

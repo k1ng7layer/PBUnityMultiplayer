@@ -38,5 +38,18 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             
             return result;
         }
+        
+        public string ReadString(out int stringLength)
+        {
+            stringLength = ReadInt32();
+            var stringBytes =  stringLength == 0 ? 
+                Array.Empty<byte>() : new Span<byte>(_data).Slice(_readPosition, stringLength);
+
+            var result = Encoding.UTF8.GetString(stringBytes);
+
+            _readPosition += stringLength;
+            
+            return result;
+        }
     }
 }

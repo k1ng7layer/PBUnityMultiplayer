@@ -7,7 +7,9 @@ using PBUdpTransport;
 using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Impl;
+using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Core.Server;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 
@@ -17,25 +19,29 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         INetworkManager
     {
         [SerializeField] private ScriptableNetworkConfiguration _networkConfiguration;
-        [SerializeField] private bool _useApproval;
 
         private UdpTransport _udpTransport;
-        
-        private NetworkServer.NetworkServer _networkServer;
+        private NetworkServer _server;
         private EventHandler<ConnectResult> _connectionEventHandler;
         private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
 
+        public IAuthenticationService AuthenticationService { get; set; }
+        
         public void StartClient()
         {
-            CreateConnection();
+            _server = new NetworkServer(_networkConfiguration);
+            _server.Start();
         }
         
         public void StartServer()
         {
-            CreateConnection();
+            _server = new NetworkServer(_networkConfiguration);
+            _server.Start();
+            
+            _server.OnClientConnected += HandleNewConnection;
         }
 
-        public UniTask<ConnectResult> ConnectToServer(IPEndPoint serverEndPoint, string password)
+        public UniTask<ConnectResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
         {
             var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
 
@@ -58,22 +64,19 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                 tcs.TrySetResult(result);
             };
             
-            _networkServer.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
+            _server.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
             
             return tcs.Task;
         }
-
-        private void CreateConnection()
+        
+        private void OnServerStop()
         {
-            _networkServer = new NetworkServer.NetworkServer(_networkConfiguration);
-            _networkServer.Start();
-            
-            _networkServer.OnMessageReceived += HandleIncomeMessage;
+            _server.OnClientConnected -= HandleNewConnection;
         }
 
-        private void OnDestroy()
+        private AuthenticateResult HandleNewConnection(byte[] connPayload, NetworkClient networkClient)
         {
-            _networkServer.OnMessageReceived -= HandleIncomeMessage;
+            return AuthenticationService.Authenticate(networkClient, connPayload);
         }
 
         private void HandleApproval(byte[] payload)
@@ -87,32 +90,6 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             _connectionEventHandler.Invoke(this, new ConnectResult(EConnectionResult.Success, headlessPayload));
 
             _connectionEventHandler = null;
-        }
-        
-        private void HandleIncomeMessage(ENetworkMessageType messageType, byte[] payload)
-        {
-            switch (messageType)
-            {
-                case ENetworkMessageType.Connect:
-                    break;
-                case ENetworkMessageType.Disconnect:
-                    break;
-                case ENetworkMessageType.ClientDisconnected:
-                    break;
-                case ENetworkMessageType.ClientConnected:
-                    break;
-                case ENetworkMessageType.Custom:
-                    break;
-                case ENetworkMessageType.None:
-                    break;
-                case ENetworkMessageType.Reject:
-                    break;
-                case ENetworkMessageType.Approve:
-                    HandleApproval(payload);
-                    break;
-                case ENetworkMessageType.ConnectionRequest:
-                    break;
-            }
         }
     }
 }

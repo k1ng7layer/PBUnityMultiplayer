@@ -2,7 +2,7 @@
 
 namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
 {
-    internal class NetworkClient
+    public class NetworkClient
     {
         public NetworkClient(int id, IPEndPoint remoteEndpoint)
         {

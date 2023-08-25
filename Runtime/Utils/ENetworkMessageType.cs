@@ -2,6 +2,7 @@
 {
     public enum ENetworkMessageType
     {
+        ConnectionRequest,
         Connect,
         Disconnect,
         ClientDisconnected,

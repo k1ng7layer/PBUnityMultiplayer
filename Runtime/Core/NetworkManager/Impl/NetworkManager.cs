@@ -1,16 +1,13 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
-using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 
@@ -19,63 +16,31 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
     public class NetworkManager : MonoBehaviour, 
         INetworkManager
     {
-        [SerializeField] private ScriptableNetworkConfiguration _scriptableNetworkConfiguration;
-        
+        [SerializeField] private ScriptableNetworkConfiguration _networkConfiguration;
+        [SerializeField] private bool _useApproval;
+
         private UdpTransport _udpTransport;
-        private bool _isRunning;
-        private readonly ConcurrentQueue<PendingMessage> _sendMessagesQueue = new();
-        private readonly ConcurrentQueue<PendingMessage> _receiveMessagesQueue = new();
-        private EventHandler<ConnectResult> _connectionEventHandler;
         
+        private NetworkServer.NetworkServer _networkServer;
+        private EventHandler<ConnectResult> _connectionEventHandler;
+        private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
+
         public void StartClient()
         {
-            var ipResult = IPAddress.TryParse(_scriptableNetworkConfiguration.LocalIp, out var ip);
-
-            if (!ipResult)
-                throw new Exception($"[{nameof(NetworkManager)}] invalid local ip address, check config");
-
-            var localEndPoint = new IPEndPoint(ip, _scriptableNetworkConfiguration.LocalPort);
-
-            _udpTransport = new UdpTransport(localEndPoint);
-            
-            _udpTransport.Start();
-
-            _isRunning = true;
-
-            var task = Task.Run(async () => await Receive());
+            CreateConnection();
         }
         
-        private async Task Receive()
-        {
-            while (_isRunning)
-            {
-                var result = await _udpTransport.ReceiveAsync();
-
-                var message = Encoding.UTF8.GetString(result.Payload);
-                
-                Debug.Log($"received message = {message}");
-            }
-        }
-
         public void StartServer()
         {
-            
+            CreateConnection();
         }
 
         public UniTask<ConnectResult> ConnectToServer(IPEndPoint serverEndPoint, string password)
         {
-            var ipResult = IPAddress.TryParse(_scriptableNetworkConfiguration.LocalIp, out var ip);
+            var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
 
             if (!ipResult)
                 throw new Exception($"[{nameof(NetworkManager)}] invalid local ip address, check config");
-
-            var localEndPoint = new IPEndPoint(ip, _scriptableNetworkConfiguration.LocalPort);
-
-            _udpTransport = new UdpTransport(localEndPoint);
-            
-            _udpTransport.Start();
-
-            _isRunning = true;
 
             var pwdBytes = Encoding.UTF8.GetBytes(password);
             var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
@@ -84,7 +49,8 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             writer.AddBytes(pwdBytes);
 
             var tcs = new UniTaskCompletionSource<ConnectResult>();
-            var cts = new CancellationTokenSource(_scriptableNetworkConfiguration.ConnectionTimeOut);
+            var cts = new CancellationTokenSource(_networkConfiguration.ConnectionTimeOut);
+            
             cts.Token.Register(() => { tcs.TrySetResult(new ConnectResult(EConnectionResult.TimeOut, null)); });
             
             _connectionEventHandler = (_, result) =>
@@ -92,43 +58,39 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                 tcs.TrySetResult(result);
             };
             
-            var message = new PendingMessage(writer.Data, serverEndPoint, ESendMode.Reliable);
-
-            _sendMessagesQueue.Enqueue(message);
+            _networkServer.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
             
             return tcs.Task;
         }
 
-        private void ProcessReceiveQueue()
+        private void CreateConnection()
         {
-            while (_receiveMessagesQueue.Count > 0)
-            {
-                var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
-
-                if (canDequeue)
-                {
-                    HandleIncomeMessage(message);
-                }
-            }
+            _networkServer = new NetworkServer.NetworkServer(_networkConfiguration);
+            _networkServer.Start();
+            
+            _networkServer.OnMessageReceived += HandleIncomeMessage;
         }
 
-        private async UniTask ProcessSendQueue()
+        private void OnDestroy()
         {
-            while (_sendMessagesQueue.Count > 0)
-            {
-                var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
-                
-                if (canDequeue)
-                {
-                    await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
-                }
-            }
+            _networkServer.OnMessageReceived -= HandleIncomeMessage;
         }
 
-        private void HandleIncomeMessage(PendingMessage pendingMessage)
+        private void HandleApproval(byte[] payload)
         {
-            var messageType = MessageHelper.GetMessageType(pendingMessage.Payload);
+            var headlessPayloadLength = payload.Length - sizeof(ushort);
+            
+            var headlessPayload = new byte[headlessPayloadLength];
 
+            Buffer.BlockCopy(payload, 2, headlessPayload, 0, headlessPayloadLength);
+            
+            _connectionEventHandler.Invoke(this, new ConnectResult(EConnectionResult.Success, headlessPayload));
+
+            _connectionEventHandler = null;
+        }
+        
+        private void HandleIncomeMessage(ENetworkMessageType messageType, byte[] payload)
+        {
             switch (messageType)
             {
                 case ENetworkMessageType.Connect:
@@ -146,22 +108,11 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                 case ENetworkMessageType.Reject:
                     break;
                 case ENetworkMessageType.Approve:
-                    HandleApproval(pendingMessage.Payload);
+                    HandleApproval(payload);
+                    break;
+                case ENetworkMessageType.ConnectionRequest:
                     break;
             }
-        }
-
-        private void HandleApproval(byte[] payload)
-        {
-            var headlessPayloadLength = payload.Length - sizeof(ushort);
-            
-            var headlessPayload = new byte[headlessPayloadLength];
-
-            Buffer.BlockCopy(payload, 2, headlessPayload, 0, headlessPayloadLength);
-            
-            _connectionEventHandler.Invoke(this, new ConnectResult(EConnectionResult.Success, headlessPayload));
-
-            _connectionEventHandler = null;
         }
     }
 }

@@ -1,22 +1,18 @@
 ﻿using System.Net;
-using PBUdpTransport.Utils;
 
 namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
 {
-    public readonly struct OutcomePendingMessage
+    public struct IncomePendingMessage
     {
         public readonly byte[] Payload;
         public readonly IPEndPoint RemoteEndPoint;
-        public readonly ESendMode SendMode;
 
-        public OutcomePendingMessage(
+        public IncomePendingMessage(
             byte[] payload, 
-            IPEndPoint remoteEndPoint, 
-            ESendMode sendMode)
+            IPEndPoint remoteEndPoint)
         {
             Payload = payload;
             RemoteEndPoint = remoteEndPoint;
-            SendMode = sendMode;
         }
     }
 }

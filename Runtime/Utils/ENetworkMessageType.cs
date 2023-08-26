@@ -7,6 +7,7 @@
         Disconnect,
         ClientDisconnected,
         ClientConnected,
+        ClientReconnected,
         Reject,
         Approve,
         Custom,

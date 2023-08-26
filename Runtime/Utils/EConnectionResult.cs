@@ -3,9 +3,7 @@
     public enum EConnectionResult
     {
         Success,
-        ServerIsFull,
-        InvalidCredentials,
+        Reject,
         TimeOut,
-        NotFound,
     }
 }

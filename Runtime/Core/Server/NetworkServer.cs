@@ -24,7 +24,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
         private bool _isRunning;
 
         public Action<ENetworkMessageType, byte[]> OnMessageReceived;
-        public Func<byte[], NetworkClient, AuthenticateResult> OnClientConnected;
+        public Func<byte[], NetworkClient, AuthenticateResult> OnNewClientConnected;
 
         public bool useApproval;
 
@@ -167,7 +167,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
                 
                 Buffer.BlockCopy(incomePendingMessage.Payload, 8 + strSize, connectionPayload, 0, length);
                 
-                var authenticateResult = OnClientConnected.Invoke(connectionPayload, networkClient);
+                var authenticateResult = OnNewClientConnected.Invoke(connectionPayload, networkClient);
 
                 var byteWriter = new ByteWriter();
                 byteWriter.AddUshort((ushort)authenticateResult.ConnectionResult);

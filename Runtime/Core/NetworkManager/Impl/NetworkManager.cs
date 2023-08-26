@@ -32,13 +32,24 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             _server = new NetworkServer(_networkConfiguration);
             _server.Start();
         }
-        
+
+        public event Action OnClientConnectedToServer;
+        public event Action OnClientAuthenticated;
+        public event Action<NetworkClient> OnSeverAuthenticated;
+
         public void StartServer()
         {
             _server = new NetworkServer(_networkConfiguration);
             _server.Start();
             
-            _server.OnClientConnected += HandleNewConnection;
+            _server.OnNewClientConnected += HandleNewConnection;
+            AuthenticationService.OnAuthenticated += OnServerAuthenticated;
+        }
+        
+        public void StopServer()
+        {
+            _server.OnNewClientConnected -= HandleNewConnection;
+            AuthenticationService.OnAuthenticated -= OnServerAuthenticated;
         }
 
         public UniTask<ConnectResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
@@ -68,15 +79,15 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             
             return tcs.Task;
         }
-        
-        private void OnServerStop()
-        {
-            _server.OnClientConnected -= HandleNewConnection;
-        }
 
         private AuthenticateResult HandleNewConnection(byte[] connPayload, NetworkClient networkClient)
         {
             return AuthenticationService.Authenticate(networkClient, connPayload);
+        }
+
+        private void OnServerAuthenticated(NetworkClient client)
+        {
+            OnSeverAuthenticated?.Invoke(client);
         }
 
         private void HandleApproval(byte[] payload)

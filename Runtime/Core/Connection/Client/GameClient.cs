@@ -10,9 +10,9 @@ using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 
-namespace PBUnityMultiplayer.Runtime.Core.Client
+namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 {
-    public class GameClient
+    public class GameClient : Peer
     {
         private readonly INetworkConfiguration _networkConfiguration;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
@@ -37,6 +37,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
         public event Action<int> ClientConnected;
         public event Action<int> ClientDisconnected;
         public event Action<int> ClientReconnected;
+        public event Action<EConnectionResult, string> LocalClientAuthenticated;
 
         public void Start()
         {
@@ -148,7 +149,19 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
                     break;
                 case ENetworkMessageType.Custom:
                     break;
+                case ENetworkMessageType.AuthenticationResult:
+                    HandleConnectionAuthentication(messagePayload);
+                    break;
             }
+        }
+
+        private void HandleConnectionAuthentication(byte[] connPayload)
+        {
+            var byteReader = new ByteReader(connPayload);
+            var result = (EConnectionResult)byteReader.ReadInt32();
+            var reason = byteReader.ReadString();
+            
+            LocalClientAuthenticated?.Invoke(result, reason);
         }
 
         private void HandleNewConnection(byte[] connectionPayload)

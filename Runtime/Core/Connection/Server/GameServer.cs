@@ -23,7 +23,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
         private bool _isRunning;
 
         public Action<ENetworkMessageType, byte[]> OnMessageReceived;
-        public Action<NetworkClient> OnNewClientConnected;
+        public Action<NetworkClient, byte[]> OnNewClientConnected;
 
         public bool useApproval;
 
@@ -185,11 +185,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
                 if (!hasClient)
                 {
                     _networkClientsTable.Add(clientId, networkClient);
+                    
+                    var byteWriter = new ByteWriter();
+
+                    Send(byteWriter.Data, networkClient, ESendMode.Reliable);
+                    
+                    //TODO: segregate client's credentials message 
+                    OnNewClientConnected?.Invoke(networkClient, messagePayload);
                 }
-
-                var byteWriter = new ByteWriter();
-
-                Send(byteWriter.Data, networkClient, ESendMode.Reliable);
             }
             
         }

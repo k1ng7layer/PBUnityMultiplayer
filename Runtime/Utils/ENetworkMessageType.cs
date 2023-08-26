@@ -8,7 +8,7 @@
         ClientReconnected,
         Disconnect,
         Custom,
-        Approve,
+        AuthenticationResult,
         None
     }
 }

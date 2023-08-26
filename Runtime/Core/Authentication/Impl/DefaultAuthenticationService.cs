@@ -9,29 +9,36 @@ namespace PBUnityMultiplayer.Runtime.Core.Authentication.Impl
     {
         private const string PASSWORD = "1234";
 
-        public event Action<NetworkClient> OnAuthenticated;
-
-        public AuthenticateResult Authenticate(NetworkClient client, byte[] message)
+        public void AuthenticateServer(NetworkClient client, byte[] authPayload)
         {
-            var byteRear = new ByteReader(message);
+            var byteRear = new ByteReader(authPayload);
             var password = byteRear.ReadString();
 
-            var connectionResult = EConnectionResult.Reject;
-            var respMessage = string.Empty;
-            
             if (PASSWORD == password)
             {
-                connectionResult = EConnectionResult.Success;
-                
-                OnAuthenticated?.Invoke(client);
-            }
-            else
-            {
-                connectionResult = EConnectionResult.Reject;
-                respMessage = "Wrong credentials";
+                client.IsApproved = true;
+                OnAuthenticated?.Invoke(new AuthenticateResult(EConnectionResult.Success, "Success"), client);
+                return;
             }
             
-            return new AuthenticateResult(connectionResult, respMessage);
+            OnAuthenticated?.Invoke(new AuthenticateResult(EConnectionResult.Reject, "Wrong credentials"), client);
+        }
+
+        public void AuthenticateClient(NetworkClient client, byte[] authPayload)
+        {
+            
+        }
+
+        public event Action<AuthenticateResult, NetworkClient> OnAuthenticated;
+        
+        public void AuthenticateServer(NetworkClient client)
+        {
+        
+        }
+
+        public void AuthenticateClient(NetworkClient client)
+        {
+            
         }
     }
 }

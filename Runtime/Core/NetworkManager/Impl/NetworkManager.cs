@@ -8,6 +8,7 @@ using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
+using PBUnityMultiplayer.Runtime.Core.Client;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Core.Server;
 using PBUnityMultiplayer.Runtime.Utils;
@@ -19,56 +20,64 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         INetworkManager
     {
         [SerializeField] private ScriptableNetworkConfiguration _networkConfiguration;
-
+        [SerializeField] private bool useAuthentication;
+        
         private UdpTransport _udpTransport;
-        private NetworkServer _server;
-        private EventHandler<ConnectResult> _connectionEventHandler;
+        private GameServer _server;
+        private GameClient _client;
+        private EventHandler<AuthenticateResult> _connectionEventHandler;
         private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
 
         public IAuthenticationService AuthenticationService { get; set; }
         
-        public void StartClient()
-        {
-            _server = new NetworkServer(_networkConfiguration);
-            _server.Start();
-        }
-
-        public event Action OnClientConnectedToServer;
-        public event Action OnClientAuthenticated;
-        public event Action<NetworkClient> OnSeverAuthenticated;
+        public event Action ClientConnectedToServer;
+        public event Action<NetworkClient> SeverAuthenticated;
+        public event Action<AuthenticateResult> ClientAuthenticated;
 
         public void StartServer()
         {
-            _server = new NetworkServer(_networkConfiguration);
+            _server = new GameServer(_networkConfiguration);
             _server.Start();
             
-            _server.OnNewClientConnected += HandleNewConnection;
+            _server.OnNewClientConnected += ServerHandleNewConnection;
             AuthenticationService.OnAuthenticated += OnServerAuthenticated;
         }
         
         public void StopServer()
         {
-            _server.OnNewClientConnected -= HandleNewConnection;
+            _server.OnNewClientConnected -= ServerHandleNewConnection;
             AuthenticationService.OnAuthenticated -= OnServerAuthenticated;
         }
-
-        public UniTask<ConnectResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
+        
+        private void StartClient()
         {
-            var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
+            _client = new GameClient(_networkConfiguration);
+            _client.Start();
 
-            if (!ipResult)
-                throw new Exception($"[{nameof(NetworkManager)}] invalid local ip address, check config");
+            _client.LocalClientConnected += AuthenticateClient;
+            AuthenticationService.OnAuthenticated += OnClientAuthenticated;
+        }
 
+        public void StopClient()
+        {
+            _client.LocalClientConnected -= AuthenticateClient;
+            AuthenticationService.OnAuthenticated -= OnClientAuthenticated;
+        }
+
+        public UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
+        {
+            StartClient();
+            
             var pwdBytes = Encoding.UTF8.GetBytes(password);
             var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
             
-            writer.AddUshort((ushort)ENetworkMessageType.Connect);
+            writer.AddUshort((ushort)ENetworkMessageType.ConnectionRequest);
             writer.AddBytes(pwdBytes);
 
-            var tcs = new UniTaskCompletionSource<ConnectResult>();
+            var tcs = new UniTaskCompletionSource<AuthenticateResult>();
             var cts = new CancellationTokenSource(_networkConfiguration.ConnectionTimeOut);
             
-            cts.Token.Register(() => { tcs.TrySetResult(new ConnectResult(EConnectionResult.TimeOut, null)); });
+            cts.Token.Register(() => { tcs.TrySetResult(new AuthenticateResult(EConnectionResult.TimeOut, null)); });
             
             _connectionEventHandler = (_, result) =>
             {
@@ -80,27 +89,51 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             return tcs.Task;
         }
 
-        private AuthenticateResult HandleNewConnection(byte[] connPayload, NetworkClient networkClient)
+        private void ServerHandleNewConnection(NetworkClient networkClient)
         {
-            return AuthenticationService.Authenticate(networkClient, connPayload);
+            AuthenticationService.AuthenticateServer(networkClient);
         }
 
-        private void OnServerAuthenticated(NetworkClient client)
+        private void OnServerAuthenticated(AuthenticateResult authenticateResult, NetworkClient client)
         {
-            OnSeverAuthenticated?.Invoke(client);
+            //TODO: send message to all clients
+            var result = authenticateResult.ConnectionResult;
+            var byteWriter = new ByteWriter(10 + authenticateResult.Message.Length);
+
+            byteWriter.AddUshort((ushort)result);
+            byteWriter.AddInt(client.Id);
+            byteWriter.AddString(authenticateResult.Message);
+            
+            switch (result)
+            {
+                case EConnectionResult.Success:
+                    client.IsApproved = true;
+                    _server.Send(byteWriter.Data, client, ESendMode.Reliable);
+                    break;
+                case EConnectionResult.Reject:
+                case EConnectionResult.TimeOut:
+                    _server.DisconnectClient(client.Id, authenticateResult.Message);
+                    break;
+            }
+            
+            SeverAuthenticated?.Invoke(client);
         }
 
-        private void HandleApproval(byte[] payload)
+        private void OnClientAuthenticated(AuthenticateResult authenticateResult, NetworkClient client)
         {
-            var headlessPayloadLength = payload.Length - sizeof(ushort);
+            if (authenticateResult.ConnectionResult == EConnectionResult.Reject)
+            {
+                StopClient();
+            }
             
-            var headlessPayload = new byte[headlessPayloadLength];
-
-            Buffer.BlockCopy(payload, 2, headlessPayload, 0, headlessPayloadLength);
+            _connectionEventHandler?.Invoke(this, authenticateResult);
             
-            _connectionEventHandler.Invoke(this, new ConnectResult(EConnectionResult.Success, headlessPayload));
+            ClientAuthenticated?.Invoke(authenticateResult);
+        }
 
-            _connectionEventHandler = null;
+        private void AuthenticateClient()
+        {
+            AuthenticationService.AuthenticateClient(_client.LocalClient);
         }
     }
 }

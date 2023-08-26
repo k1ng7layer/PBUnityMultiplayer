@@ -5,7 +5,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Authentication
 {
     public interface IAuthenticationService
     {
-        event Action<NetworkClient> OnAuthenticated;
-        AuthenticateResult Authenticate(NetworkClient client, byte[] message);
+        event Action<AuthenticateResult, NetworkClient> OnAuthenticated;
+        // void AuthenticateServer(NetworkClient client, byte[] authPayload);
+        // void AuthenticateClient(NetworkClient client, byte[] authPayload);
+        void AuthenticateServer(NetworkClient client);
+        void AuthenticateClient(NetworkClient client);
     }
 }

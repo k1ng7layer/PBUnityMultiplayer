@@ -44,7 +44,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             if(_isRunning)
                 throw new Exception($"[{nameof(NetworkManager)}] can't start server when network manager already running ");
             
-            var localEndPoint = new IPEndPoint(ip, _networkConfiguration.LocalPort);
+            var localEndPoint = new IPEndPoint(ip, _networkConfiguration.ServerPort);
 
             _udpTransport = new UdpTransport(localEndPoint);
             

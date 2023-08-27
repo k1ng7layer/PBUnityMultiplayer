@@ -10,6 +10,7 @@ using PBUdpTransport.Config.Impl;
 using PBUdpTransport.Helpers;
 using PBUdpTransport.Models;
 using PBUdpTransport.Utils;
+using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 
 namespace PBUdpTransport
 {

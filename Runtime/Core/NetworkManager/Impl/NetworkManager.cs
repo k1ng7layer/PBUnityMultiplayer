@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
-using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
@@ -12,6 +11,7 @@ using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
 using PBUnityMultiplayer.Runtime.Core.Connection.Server;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 

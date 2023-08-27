@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Net;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
-using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
+using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 
@@ -161,7 +161,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             switch (messageType)
             {
                 case ENetworkMessageType.ConnectionRequest:
-                    HandleNewConnection(messagePayload);
+                    HandleNewConnection(messagePayload, incomePendingMessage.RemoteEndPoint);
                     break;
                 case ENetworkMessageType.ClientDisconnected:
                     HandleClientDisconnected(messagePayload);
@@ -174,26 +174,26 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             }
         }
 
-        private void HandleNewConnection(byte[] messagePayload)
+        private void HandleNewConnection(byte[] messagePayload, IPEndPoint remoteEndPoint)
         {
             var messageType = MessageHelper.GetMessageType(messagePayload);
 
             if (messageType == ENetworkMessageType.ConnectionRequest)
             {
-                var byteReader = new ByteReader(messagePayload);
-                var playerIpString = byteReader.ReadString(out var strSize);
-                var playerPort = byteReader.ReadInt32();
+                var byteReader = new ByteReader(messagePayload, 2);
+                // var playerIpString = byteReader.ReadString(out var strSize);
+                // var playerPort = byteReader.ReadInt32();
                     
-                var parseResult = IPAddress.TryParse(playerIpString, out var ipResult);
-                    
-                if(!parseResult)
-                    return;
-
-                var remoteEndpoint = new IPEndPoint(ipResult, playerPort);
+                // var parseResult = IPAddress.TryParse(playerIpString, out var ipResult);
+                //     
+                // if(!parseResult)
+                //     return;
+                //
+                // var remoteEndpoint = new IPEndPoint(ipResult, playerPort);
 
                 var clientId = _nextId++;
                 
-                var networkClient = new NetworkClient(_nextId++, remoteEndpoint);
+                var networkClient = new NetworkClient(_nextId++, remoteEndPoint);
 
                 var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
 
@@ -201,22 +201,22 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 {
                     _networkClientsTable.Add(clientId, networkClient);
                     
-                    var byteWriter = new ByteWriter(6);
+                    var byteWriter = new ByteWriter();
                     
                     byteWriter.AddUshort((ushort)ENetworkMessageType.ClientConnected);
                     byteWriter.AddInt(clientId);
-                    byteWriter.AddString(playerIpString);
-                    byteWriter.AddInt(playerPort);
+                    byteWriter.AddString(remoteEndPoint.Address.ToString());
+                    byteWriter.AddInt(remoteEndPoint.Port);
 
                     Send(byteWriter.Data, networkClient, ESendMode.Reliable);
                     
                     //TODO: segregate client's credentials message 
 
-                    var msgLength = messagePayload.Length - (6 + strSize);
+                    var msgLength = messagePayload.Length - 2;
                     
                     var connectInfoPayload = new byte[msgLength];
                     
-                    Buffer.BlockCopy(messagePayload, 6 + strSize, connectInfoPayload, 0, msgLength);
+                    Buffer.BlockCopy(messagePayload, 2, connectInfoPayload, 0, msgLength);
                     
                     ClientConnected?.Invoke(networkClient, connectInfoPayload);
                 }

@@ -10,8 +10,8 @@ using PBUnityMultiplayer.Runtime.Configuration.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
+using PBUnityMultiplayer.Runtime.Core.Connection.Server;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
-using PBUnityMultiplayer.Runtime.Core.Server;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 

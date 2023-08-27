@@ -11,7 +11,7 @@ using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 
-namespace PBUnityMultiplayer.Runtime.Core.Server
+namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
     internal class GameServer
     {

@@ -66,13 +66,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             _isRunning = true;
             
-            UniTask.RunOnThreadPool(async () => { await Receive(); }, false);
-            UniTask.RunOnThreadPool(async () => { await ProcessSendQueue(); }, false);
+            //UniTask.RunOnThreadPool(async () => { await Receive(); }, false);
+            //UniTask.RunOnThreadPool(async () => { await ProcessSendQueue(); }, false);
         }
 
         public void Update()
         {
             ProcessReceiveQueue();
+            ProcessSendQueue();
+            Receive();
         }
 
         public void Send(
@@ -139,25 +141,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         private async UniTask ProcessSendQueue()
         {
-            while (_isRunning)
+            while (_sendMessagesQueue.Count > 0)
             {
-                while (_sendMessagesQueue.Count > 0)
+                try
                 {
-                    try
-                    {
-                        var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
+                    var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
                 
-                        if (canDequeue)
-                        {
-                            await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
-                        }
-                    }
-                    catch (Exception e)
+                    if (canDequeue)
                     {
-                        Debug.LogError(e);
+                        await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
                     }
                 }
-            
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                }
             }
         }
         

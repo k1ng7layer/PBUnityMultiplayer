@@ -53,13 +53,17 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
             _isRunning = true;
             
-            UniTask.RunOnThreadPool(async () => { await Receive(); }, false);
-            UniTask.RunOnThreadPool(async () => { await ProcessSendQueue(); }, false);
+            // UniTask.Create(async () => { await Receive(); });
+            // UniTask.Create(async () => { await ProcessSendQueue(); });
+            // Task.Run(async () => await Receive());
+            // Task.Run(async () => await ProcessSendQueue());
         }
 
         public void Update()
         {
             ProcessReceiveQueue();
+            ProcessSendQueue();
+            Receive();
         }
 
         public void Send(

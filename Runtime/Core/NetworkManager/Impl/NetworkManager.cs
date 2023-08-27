@@ -146,5 +146,12 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             
             _clientConnectionEventHandler?.Invoke(this, new AuthenticateResult(authenticateResult, serverMessage));
         }
+
+        private void FixedUpdate()
+        {
+            _client?.Update();
+
+            _server?.Update();
+        }
     }
 }

@@ -10,6 +10,7 @@ using PBUnityMultiplayer.Runtime.Configuration;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
@@ -117,27 +118,41 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         
         private void ProcessReceiveQueue()
         {
-            while (_receiveMessagesQueue.Count > 0)
+            while (_isRunning)
             {
-                var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
-
-                if (canDequeue)
+                while (_receiveMessagesQueue.Count > 0)
                 {
-                    HandleIncomeMessage(message);
+                    var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
+
+                    if (canDequeue)
+                    {
+                        HandleIncomeMessage(message);
+                    }
                 }
             }
         }
 
         private async UniTask ProcessSendQueue()
         {
-            while (_sendMessagesQueue.Count > 0)
+            while (_isRunning)
             {
-                var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
-                
-                if (canDequeue)
+                while (_sendMessagesQueue.Count > 0)
                 {
-                    await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
+                    try
+                    {
+                        var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
+                
+                        if (canDequeue)
+                        {
+                            await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError(e);
+                    }
                 }
+            
             }
         }
         

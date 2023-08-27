@@ -139,7 +139,6 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             {
                 case EConnectionResult.Success:
                     client.IsApproved = true;
-                    _server.Send(byteWriter.Data, client, ESendMode.Reliable);
                     break;
                 case EConnectionResult.Reject:
                 case EConnectionResult.TimeOut:
@@ -147,7 +146,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                     _server.DisconnectClient(client.Id, authenticateResult.Message);
                     break;
             }
-            
+            _server.Send(byteWriter.Data, client, ESendMode.Reliable);
             SeverAuthenticated?.Invoke(client);
         }
 

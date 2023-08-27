@@ -388,7 +388,7 @@ namespace PBUdpTransport
                     }
                     catch (Exception e)
                     {
-                        Debug.LogError(e);
+                        //Debug.LogError(e);
                     }
                 }
             }

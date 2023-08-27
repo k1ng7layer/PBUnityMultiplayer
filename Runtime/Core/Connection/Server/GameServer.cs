@@ -97,6 +97,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             }
         }
         
+        public void Stop()
+        {
+            _isRunning = false;
+            _udpTransport.Stop();
+        }
+        
         private async UniTask Receive()
         {
             while (_isRunning)

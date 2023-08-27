@@ -94,6 +94,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             
             _sendMessagesQueue.Enqueue(outcomeMessage);
         }
+
+        public void Stop()
+        {
+            _isRunning = false;
+            _udpTransport.Stop();
+        }
         
         private async UniTask Receive()
         {

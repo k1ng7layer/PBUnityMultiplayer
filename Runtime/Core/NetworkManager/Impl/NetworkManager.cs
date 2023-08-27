@@ -57,6 +57,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         
         public void StopServer()
         {
+            _server.Stop();
             _server.ClientConnected -= ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
         }
@@ -72,6 +73,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         public void StopClient()
         {
+            _client.Stop();
             _client.LocalClientConnected -= OnLocalClientConnected;
             _client.LocalClientAuthenticated -= OnClientAuthenticated;
         }

@@ -6,8 +6,8 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Impl
     public class ScriptableNetworkConfiguration : ScriptableObject, 
         INetworkConfiguration
     {
-        [SerializeField] private string serverIp;
-        [SerializeField] private int serverPort;
+        [SerializeField] private string serverIp = "127.0.0.1";
+        [SerializeField] private int serverPort = 7779;
         [SerializeField] private string localIp = "127.0.0.1";
         [SerializeField] private int localPort = 7777;
         [SerializeField] private int connectionTimeOut;

@@ -13,6 +13,12 @@ namespace PBUnityMultiplayer.Runtime.Helpers
         {
             _data = data;
         }
+        
+        public ByteReader(byte[] data, int offset)
+        {
+            _data = data;
+            _readPosition = offset;
+        }
 
         public int ReadInt32()
         {

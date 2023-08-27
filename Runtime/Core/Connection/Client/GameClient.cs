@@ -21,6 +21,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         
         private UdpTransport _udpTransport;
         private IPEndPoint _serverEndPoint;
+        private IPEndPoint _localEndPoint;
         private bool _isRunning;
         
         public GameClient(INetworkConfiguration networkConfiguration)
@@ -49,7 +50,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             if(_isRunning)
                 throw new Exception($"[{nameof(GameClient)}] can't start server when network manager already running ");
             
-            var localEndPoint = new IPEndPoint(ip, _networkConfiguration.LocalPort);
+            _localEndPoint = new IPEndPoint(ip, _networkConfiguration.LocalPort);
 
             var serverIpResult = IPAddress.TryParse(_networkConfiguration.ServerIp, out var serverIp);
             
@@ -58,7 +59,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             _serverEndPoint = new IPEndPoint(serverIp, _networkConfiguration.ServerPort);
             
-            _udpTransport = new UdpTransport(localEndPoint);
+            _udpTransport = new UdpTransport(_localEndPoint);
             
             _udpTransport.Start();
 
@@ -166,7 +167,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         private void HandleNewConnection(byte[] connectionPayload)
         {
-            var byteReader = new ByteReader(connectionPayload);
+            var byteReader = new ByteReader(connectionPayload, 2);
             var clientId = byteReader.ReadInt32();
             
             var playerIpString = byteReader.ReadString(out _);
@@ -183,7 +184,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             
             _networkClientsTable.Add(clientId, networkClient);
 
-            if (clientId == LocalClient.Id)
+            if (Equals(remoteEndpoint, _localEndPoint))
             {
                 LocalClient = networkClient;
                 LocalClientConnected?.Invoke();

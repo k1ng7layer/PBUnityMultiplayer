@@ -21,11 +21,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
         private UdpTransport _udpTransport;
         private bool _isRunning;
-
-        public Action<ENetworkMessageType, byte[]> OnMessageReceived;
-        public Action<NetworkClient, byte[]> OnNewClientConnected;
-
-        public bool useApproval;
+        private int _nextId;
 
         public GameServer(INetworkConfiguration networkConfiguration)
         {
@@ -33,8 +29,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
-        
-        public event Action<int> ClientConnected;
+
+        public Action<NetworkClient, byte[]> ClientConnected;
         public event Action<int> ClientDisconnected;
         public event Action<int> ClientReconnected;
 
@@ -167,7 +163,6 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             if (messageType == ENetworkMessageType.ConnectionRequest)
             {
                 var byteReader = new ByteReader(messagePayload);
-                var clientId = byteReader.ReadInt32();
                 var playerIpString = byteReader.ReadString(out var strSize);
                 var playerPort = byteReader.ReadInt32();
                     
@@ -177,8 +172,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     return;
 
                 var remoteEndpoint = new IPEndPoint(ipResult, playerPort);
-                    
-                var networkClient = new NetworkClient(clientId, remoteEndpoint);
+
+                var clientId = _nextId++;
+                
+                var networkClient = new NetworkClient(_nextId++, remoteEndpoint);
 
                 var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
 
@@ -186,12 +183,24 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 {
                     _networkClientsTable.Add(clientId, networkClient);
                     
-                    var byteWriter = new ByteWriter();
+                    var byteWriter = new ByteWriter(6);
+                    
+                    byteWriter.AddUshort((ushort)ENetworkMessageType.ClientConnected);
+                    byteWriter.AddInt(clientId);
+                    byteWriter.AddString(playerIpString);
+                    byteWriter.AddInt(playerPort);
 
                     Send(byteWriter.Data, networkClient, ESendMode.Reliable);
                     
                     //TODO: segregate client's credentials message 
-                    OnNewClientConnected?.Invoke(networkClient, messagePayload);
+
+                    var msgLength = messagePayload.Length - (6 + strSize);
+                    
+                    var connectInfoPayload = new byte[msgLength];
+                    
+                    Buffer.BlockCopy(messagePayload, 6 + strSize, connectInfoPayload, 0, msgLength);
+                    
+                    ClientConnected?.Invoke(networkClient, connectInfoPayload);
                 }
             }
             

@@ -51,13 +51,13 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             _server = new GameServer(networkConfiguration);
             _server.Start();
             
-            _server.OnNewClientConnected += ServerHandleNewConnection;
+            _server.ClientConnected += ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
         }
         
         public void StopServer()
         {
-            _server.OnNewClientConnected -= ServerHandleNewConnection;
+            _server.ClientConnected -= ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
         }
         

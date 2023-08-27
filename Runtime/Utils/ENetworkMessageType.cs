@@ -3,14 +3,12 @@
     public enum ENetworkMessageType
     {
         ConnectionRequest,
-        Connect,
-        Disconnect,
         ClientDisconnected,
         ClientConnected,
         ClientReconnected,
-        Reject,
-        Approve,
+        Disconnect,
         Custom,
+        AuthenticationResult,
         None
     }
 }

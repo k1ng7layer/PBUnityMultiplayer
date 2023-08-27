@@ -5,12 +5,12 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
     public readonly struct ConnectResult
     {
         public readonly EConnectionResult ConnectionResult;
-        public readonly byte[] Payload;
+        private readonly string _message;
 
-        public ConnectResult(EConnectionResult connectionResult, byte[] payload)
+        public ConnectResult(EConnectionResult connectionResult, string message)
         {
             ConnectionResult = connectionResult;
-            Payload = payload;
+            _message = message;
         }
     }
 }

@@ -6,7 +6,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Authentication.Impl
 {
     public class ServerAuthentication : AuthenticationServiceBase
     {
-        private const string PASSWORD = "1234";
+        private const string PASSWORD = "123";
 
         public override void Authenticate(NetworkClient client, byte[] authPayload)
         {

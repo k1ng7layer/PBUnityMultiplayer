@@ -19,10 +19,12 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
          { 
             CheckSpaceAndCopy(4); 
             
-            Data[WritePos] = (byte)(value >> 24);
-            Data[WritePos + 1] = (byte)(value >> 16);
-            Data[WritePos + 2] = (byte)(value >> 8);
-            Data[WritePos + 3] = (byte)value;
+            var bytes = BitConverter.GetBytes(value);
+
+            Data[WritePos] = bytes[0];
+            Data[WritePos + 1] = bytes[1];
+            Data[WritePos + 2] = bytes[2];
+            Data[WritePos + 3] = bytes[3];
 
             WritePos += sizeof(int);
         }
@@ -45,9 +47,9 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
         {
             var bytes = Encoding.UTF8.GetBytes(value);
 
-            CheckSpaceAndCopy(bytes.Length + 4);
             
             AddInt(bytes.Length);
+            CheckSpaceAndCopy(bytes.Length);
             
             for (int i = 0; i < bytes.Length; i++)
             {
@@ -111,7 +113,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
         {
             if (WritePos + requiredSpace > Data.Length)
             {
-                var newArray = new byte[Data.Length + 4];
+                var newArray = new byte[Data.Length + requiredSpace];
                 Buffer.BlockCopy(Data, 0, newArray, 0, Data.Length);
                 Data = newArray;
             }

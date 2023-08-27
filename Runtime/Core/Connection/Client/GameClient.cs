@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
@@ -68,13 +69,16 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             
             //UniTask.RunOnThreadPool(async () => { await Receive(); }, false);
             //UniTask.RunOnThreadPool(async () => { await ProcessSendQueue(); }, false);
+
+            Task.Run(async () => await Receive());
+            Task.Run(async () => await ProcessSendQueue());
         }
 
         public void Update()
         {
             ProcessReceiveQueue();
-            ProcessSendQueue();
-            Receive();
+            //ProcessSendQueue();
+            //Receive();
         }
 
         public void Send(
@@ -106,17 +110,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         
         private async UniTask Receive()
         {
-            try
+            while (_isRunning)
             {
-                var result = await _udpTransport.ReceiveAsync();
+                try
+                {
+                    var result = await _udpTransport.ReceiveAsync();
 
-                var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
+                    var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
                 
-                _receiveMessagesQueue.Enqueue(incomeMessage);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e);
+                    _receiveMessagesQueue.Enqueue(incomeMessage);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                }
             }
         }
         
@@ -135,20 +142,24 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         private async UniTask ProcessSendQueue()
         {
-            while (_sendMessagesQueue.Count > 0)
+            while (_isRunning)
             {
-                try
+                while (_sendMessagesQueue.Count > 0)
                 {
-                    var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
-                
-                    if (canDequeue)
+                    try
                     {
-                        await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
+                        var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
+                
+                        if (canDequeue)
+                        {
+                            await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
+                            Debug.Log("Sent");
+                        }
                     }
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError(e);
+                    catch (Exception e)
+                    {
+                        Debug.LogError(e);
+                    }
                 }
             }
         }
@@ -178,10 +189,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         private void HandleConnectionAuthentication(byte[] connPayload)
         {
-            var byteReader = new ByteReader(connPayload);
-            var result = (EConnectionResult)byteReader.ReadInt32();
+            var byteReader = new ByteReader(connPayload, 2);
+            var result = (EConnectionResult)byteReader.ReadUshort();
+            var clientId = byteReader.ReadInt32();
             var reason = byteReader.ReadString();
-            
+            LocalClient = new NetworkClient(clientId, _localEndPoint);
             LocalClientAuthenticated?.Invoke(result, reason);
         }
 
@@ -206,7 +218,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             if (Equals(remoteEndpoint, _localEndPoint))
             {
-                LocalClient = networkClient;
+                //LocalClient = networkClient;
                 LocalClientConnected?.Invoke();
             }
             else

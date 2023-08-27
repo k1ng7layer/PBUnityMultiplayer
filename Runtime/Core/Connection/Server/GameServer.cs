@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
@@ -57,13 +58,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             // UniTask.Create(async () => { await ProcessSendQueue(); });
             // Task.Run(async () => await Receive());
             // Task.Run(async () => await ProcessSendQueue());
+
+            Task.Run(async () => await Receive());
         }
 
         public void Update()
         {
             ProcessReceiveQueue();
             ProcessSendQueue();
-            Receive();
+            //Receive();
         }
 
         public void Send(
@@ -108,15 +111,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _udpTransport.Stop();
         }
         
-        private async UniTask Receive()
+        private async Task Receive()
         {
             while (_isRunning)
             {
-                var result = await _udpTransport.ReceiveAsync();
-
-                var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
+                try
+                {
+                    var result = await _udpTransport.ReceiveAsync();
+                    var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
                 
-                _receiveMessagesQueue.Enqueue(incomeMessage);
+                    _receiveMessagesQueue.Enqueue(incomeMessage);
+                }
+                catch (Exception e)
+                {
+                    Debug.Log(e);
+                }
             }
         }
         

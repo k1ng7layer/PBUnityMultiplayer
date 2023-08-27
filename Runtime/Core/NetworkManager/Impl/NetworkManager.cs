@@ -44,6 +44,8 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
+        public event Action<int> SeverClientDisconnected;
+        public event Action<int> SeverClientConnected;
         public event Action<AuthenticateResult> ClientAuthenticated;
 
         public void StartServer()
@@ -86,7 +88,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
             
             writer.AddUshort((ushort)ENetworkMessageType.ConnectionRequest);
-            writer.AddBytes(pwdBytes);
+            writer.AddString(password);
 
             var tcs = new UniTaskCompletionSource<AuthenticateResult>();
             var cts = new CancellationTokenSource(networkConfiguration.ConnectionTimeOut);
@@ -110,16 +112,25 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         private void ServerHandleNewConnection(NetworkClient networkClient, byte[] payload)
         {
-            if(useAuthentication)
+            SeverClientConnected?.Invoke(networkClient.Id);
+
+            if (useAuthentication)
+            {
                 AuthenticationServiceBase.Authenticate(networkClient, payload);
+            }
+            else
+            {
+                SeverAuthenticated?.Invoke(networkClient);
+            }
         }
 
         private void OnServerAuthenticated(AuthenticateResult authenticateResult, NetworkClient client)
         {
             //TODO: send message to all clients
             var result = authenticateResult.ConnectionResult;
-            var byteWriter = new ByteWriter(10 + authenticateResult.Message.Length);
+            var byteWriter = new ByteWriter();
 
+            byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
             byteWriter.AddUshort((ushort)result);
             byteWriter.AddInt(client.Id);
             byteWriter.AddString(authenticateResult.Message);
@@ -132,6 +143,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                     break;
                 case EConnectionResult.Reject:
                 case EConnectionResult.TimeOut:
+                    SeverClientDisconnected?.Invoke(client.Id);
                     _server.DisconnectClient(client.Id, authenticateResult.Message);
                     break;
             }

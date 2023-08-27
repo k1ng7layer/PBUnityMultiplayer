@@ -11,6 +11,7 @@ using PBUdpTransport.Helpers;
 using PBUdpTransport.Models;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
+using UnityEngine;
 
 namespace PBUdpTransport
 {
@@ -293,7 +294,7 @@ namespace PBUdpTransport
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine(e);
+                            Debug.LogError(e);
                         }
                     }
                 }
@@ -329,8 +330,7 @@ namespace PBUdpTransport
                catch (Exception e)
                {
                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, false));
-                   Console.WriteLine(e);
-                   throw;
+                   Debug.LogError(e);
                }
            }
        }
@@ -365,8 +365,7 @@ namespace PBUdpTransport
                catch (Exception e)
                {
                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, false));
-                   Console.WriteLine(e);
-                   throw;
+                   Debug.LogError(e);
                }
            }
        }
@@ -384,21 +383,19 @@ namespace PBUdpTransport
                         var data = new byte[_udpConfiguration.ReceiveBufferSize];
                         
                         var receiveFromResult = await _socketReceiver.ReceiveFromAsync(data, SocketFlags.None, iEndpoint);
-                    
                         var rawPacket = new RawPacket((IPEndPoint)receiveFromResult.RemoteEndPoint, data, receiveFromResult.ReceivedBytes);
                         _receivedRawPacketsQueue.Enqueue(rawPacket);
                     }
                     catch (Exception e)
                     {
-                        //Console.WriteLine(e);
+                        Debug.LogError(e);
                     }
                 }
             }
             catch (Exception e)
             {
                 _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(null, false));
-                Console.WriteLine(e);
-                throw;
+                Debug.LogError(e);
             }
         }
 
@@ -440,14 +437,13 @@ namespace PBUdpTransport
                     }
                     catch (Exception e)
                     {
-                        Console.WriteLine(e);
+                        Debug.Log(e);
                     }
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-                throw;
+                Debug.LogError(e);
             }
         }
 

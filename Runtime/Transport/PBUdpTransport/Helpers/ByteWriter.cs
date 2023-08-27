@@ -41,7 +41,9 @@ namespace PBUdpTransport.Helpers
         
         public void AddString(string value)
         {
-            var bytes = Encoding.ASCII.GetBytes(value);
+            var bytes = Encoding.UTF8.GetBytes(value);
+            
+            AddInt(bytes.Length);
             
             for (int i = 0; i < bytes.Length; i++)
             {

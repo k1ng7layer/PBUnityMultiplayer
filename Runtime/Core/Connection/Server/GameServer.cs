@@ -202,7 +202,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
                 var clientId = _nextId++;
                 
-                var networkClient = new NetworkClient(_nextId++, remoteEndPoint);
+                var networkClient = new NetworkClient(clientId, remoteEndPoint);
 
                 var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
 

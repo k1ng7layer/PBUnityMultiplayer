@@ -134,6 +134,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             byteWriter.AddUshort((ushort)result);
             byteWriter.AddInt(client.Id);
             byteWriter.AddString(authenticateResult.Message);
+            SeverAuthenticated?.Invoke(client);
             
             switch (result)
             {
@@ -147,7 +148,6 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                     break;
             }
             _server.Send(byteWriter.Data, client, ESendMode.Reliable);
-            SeverAuthenticated?.Invoke(client);
         }
 
         private void OnClientAuthenticated(EConnectionResult authenticateResult, string serverMessage)

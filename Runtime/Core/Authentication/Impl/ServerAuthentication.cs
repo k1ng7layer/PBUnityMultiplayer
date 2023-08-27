@@ -1,4 +1,3 @@
-using System;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
@@ -8,8 +7,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Authentication.Impl
     public class ServerAuthentication : AuthenticationServiceBase
     {
         private const string PASSWORD = "1234";
-        
-        public event Action<AuthenticateResult, NetworkClient> OnAuthenticated;
+
         public override void Authenticate(NetworkClient client, byte[] authPayload)
         {
             var byteRear = new ByteReader(authPayload);

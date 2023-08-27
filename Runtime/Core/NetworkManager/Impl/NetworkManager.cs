@@ -8,6 +8,7 @@ using PBUdpTransport.Helpers;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
+using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Core.Server;
@@ -27,8 +28,19 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         private GameClient _client;
         private EventHandler<AuthenticateResult> _clientConnectionEventHandler;
         private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
+        private AuthenticationServiceBase _serverAuthentication;
 
-        public AuthenticationServiceBase AuthenticationServiceBase { get; set; }
+        public AuthenticationServiceBase AuthenticationServiceBase
+        {
+            get
+            {
+                if (_serverAuthentication == null)
+                    _serverAuthentication = new ServerAuthentication();
+
+                return _serverAuthentication;
+            }
+            set => _serverAuthentication = value;
+        }
         
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
@@ -96,7 +108,8 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         private void ServerHandleNewConnection(NetworkClient networkClient, byte[] payload)
         {
-            AuthenticationServiceBase.Authenticate(networkClient, payload);
+            if(useAuthentication)
+                AuthenticationServiceBase.Authenticate(networkClient, payload);
         }
 
         private void OnServerAuthenticated(AuthenticateResult authenticateResult, NetworkClient client)

@@ -122,41 +122,34 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         
         private void ProcessReceiveQueue()
         {
-            while (_isRunning)
+            while (_receiveMessagesQueue.Count > 0)
             {
-                while (_receiveMessagesQueue.Count > 0)
-                {
-                    var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
+                var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
 
-                    if (canDequeue)
-                    {
-                        HandleIncomeMessage(message);
-                    }
+                if (canDequeue)
+                {
+                    HandleIncomeMessage(message);
                 }
             }
         }
 
         private async UniTask ProcessSendQueue()
         {
-            while (_isRunning)
+            while (_sendMessagesQueue.Count > 0)
             {
-                while (_sendMessagesQueue.Count > 0)
+                try
                 {
-                    try
-                    {
-                        var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
+                    var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
                 
-                        if (canDequeue)
-                        {
-                            await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
-                        }
-                    }
-                    catch (Exception e)
+                    if (canDequeue)
                     {
-                        Debug.LogError(e);
+                        await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
                     }
                 }
-            
+                catch (Exception e)
+                {
+                    Debug.LogError(e);
+                }
             }
         }
         

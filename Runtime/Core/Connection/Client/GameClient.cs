@@ -106,35 +106,29 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         
         private async UniTask Receive()
         {
-            while (_isRunning)
+            try
             {
-                try
-                {
-                    var result = await _udpTransport.ReceiveAsync();
+                var result = await _udpTransport.ReceiveAsync();
 
-                    var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
+                var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
                 
-                    _receiveMessagesQueue.Enqueue(incomeMessage);
-                }
-                catch (Exception e)
-                {
-                    Debug.LogError(e);
-                }
+                _receiveMessagesQueue.Enqueue(incomeMessage);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
             }
         }
         
         private void ProcessReceiveQueue()
         {
-            while (_isRunning)
+            while (_receiveMessagesQueue.Count > 0)
             {
-                while (_receiveMessagesQueue.Count > 0)
-                {
-                    var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
+                var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
 
-                    if (canDequeue)
-                    {
-                        HandleIncomeMessage(message);
-                    }
+                if (canDequeue)
+                {
+                    HandleIncomeMessage(message);
                 }
             }
         }

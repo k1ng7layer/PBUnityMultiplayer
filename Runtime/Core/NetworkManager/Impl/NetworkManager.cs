@@ -96,7 +96,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                 tcs.TrySetResult(result);
             };
             
-            _server.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
+            _client.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
             
             return tcs.Task;
         }

@@ -15,5 +15,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager
         void StartServer();
         void StopServer();
         UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);
+        void RegisterMessageHandler<T>(Action<T> handler) where T : struct;
+        void InvokeMessageHandler<T>(T data);
     }
 }

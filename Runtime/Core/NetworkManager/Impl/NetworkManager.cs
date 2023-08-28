@@ -10,7 +10,10 @@ using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
 using PBUnityMultiplayer.Runtime.Core.Connection.Server;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -27,8 +30,22 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         private GameServer _server;
         private GameClient _client;
         private EventHandler<AuthenticateResult> _clientConnectionEventHandler;
-        private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
         private AuthenticationServiceBase _serverAuthentication;
+        internal IMessageHandlersService _messageHandlersService;
+
+        internal IMessageHandlersService MessageHandlersService
+        {
+            get
+            {
+                if (_messageHandlersService == null)
+                    _messageHandlersService = new NetworkMessageHandlersService();
+
+                return _messageHandlersService;
+            }
+            set => _messageHandlersService = value;
+        }
+        
+        private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
 
         public AuthenticationServiceBase AuthenticationServiceBase
         {
@@ -103,6 +120,27 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             _client.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
             
             return tcs.Task;
+        }
+
+        public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
+        {
+            MessageHandlersService.RegisterHandler(handler);
+        }
+
+        public void InvokeMessageHandler<T>(T data)
+        {
+            var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
+            
+            if(!hasId)
+                return;
+
+            var payload = BinarySerializationHelper.Serialize(data);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddInt(id);
+            byteWriter.AddBytes(payload);
         }
 
         private void OnLocalClientConnected()

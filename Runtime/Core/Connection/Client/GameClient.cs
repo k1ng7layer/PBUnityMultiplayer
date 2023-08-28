@@ -68,8 +68,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             
             var byteWriter = new ByteWriter();
             
-            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
             byteWriter.AddInt(id);
+            byteWriter.AddInt(payload.Length);
             byteWriter.AddBytes(payload);
             
             _udpTransport.Send(byteWriter.Data, _serverEndPoint, sendMode);
@@ -217,7 +218,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 case ENetworkMessageType.AuthenticationResult:
                     HandleConnectionAuthentication(messagePayload);
                     break;
+                case ENetworkMessageType.NetworkMessage:
+                    HandleNetworkMessage(messagePayload);
+                    break;
             }
+        }
+
+        private void HandleNetworkMessage(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            var networkMessageId = byteReader.ReadInt32();
+            var payloadLength = byteReader.ReadInt32();
+            var networkMessagePayload = byteReader.ReadBytes(payloadLength);
+
+            MessageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
         }
 
         private void HandleConnectionAuthentication(byte[] connPayload)

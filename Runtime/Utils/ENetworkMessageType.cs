@@ -9,7 +9,7 @@
         Disconnect,
         Custom,
         AuthenticationResult,
-        NetworkMessageHandler,
+        NetworkMessage,
         None
     }
 }

@@ -141,7 +141,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             
             var byteWriter = new ByteWriter();
             
-            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
             byteWriter.AddInt(id);
             byteWriter.AddBytes(payload);
         }

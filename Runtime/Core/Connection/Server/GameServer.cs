@@ -61,8 +61,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             
             var byteWriter = new ByteWriter();
             
-            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
             byteWriter.AddInt(id);
+            byteWriter.AddInt(payload.Length);
             byteWriter.AddBytes(payload);
 
             foreach (var client in _networkClientsTable.Values)
@@ -83,8 +84,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             
             var byteWriter = new ByteWriter();
             
-            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
             byteWriter.AddInt(id);
+            byteWriter.AddInt(payload.Length);
             byteWriter.AddBytes(payload);
             
             _udpTransport.Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
@@ -232,9 +234,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.ClientReconnected:
                     HandleClientReconnected(messagePayload);
                     break;
-                case ENetworkMessageType.Custom:
+                case ENetworkMessageType.NetworkMessage:
+                    HandleNetworkMessage(messagePayload);
                     break;
             }
+        }
+        
+        private void HandleNetworkMessage(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            var networkMessageId = byteReader.ReadInt32();
+            var payloadLength = byteReader.ReadInt32();
+            var networkMessagePayload = byteReader.ReadBytes(payloadLength);
+
+            MessageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
         }
 
         private void HandleNewConnection(byte[] messagePayload, IPEndPoint remoteEndPoint)

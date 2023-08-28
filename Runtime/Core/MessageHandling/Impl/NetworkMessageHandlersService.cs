@@ -1,15 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
 {
     public class NetworkMessageHandlersService : IMessageHandlersService
     {
-        private readonly Dictionary<int, List<NetworkMessageHandler>> _registeredHandlersTable = new();
+        private readonly Dictionary<string, List<NetworkMessageHandler>> _registeredHandlersTable = new();
 
-        public bool TryGetHandlerId<T>(out int id)
+        public NetworkMessageHandlersService()
         {
-            id = typeof(T).FullName.GetHashCode();
+            Debug.Log("NetworkMessageHandlersService");
+        }
+
+        public bool TryGetHandlerId<T>(out string id)
+        {
+            id = typeof(T).FullName.ToString();
 
             var hasId = _registeredHandlersTable.TryGetValue(id, out var handlerId);
 
@@ -18,7 +24,7 @@ namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
 
         public void RegisterHandler<T>(Action<T> handler) where T : struct
         {
-            var id = typeof(T).FullName.GetHashCode();
+            var id = typeof(T).FullName.ToString();
 
             if (!_registeredHandlersTable.ContainsKey(id))
             {
@@ -29,7 +35,7 @@ namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
             _registeredHandlersTable[id].Add(networkHandler);
         }
 
-        public void CallHandler(int id, byte[] payload)
+        public void CallHandler(string id, byte[] payload)
         {
             var hasHandler = _registeredHandlersTable.TryGetValue(id, out var handlers);
             

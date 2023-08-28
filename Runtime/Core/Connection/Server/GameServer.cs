@@ -62,13 +62,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var byteWriter = new ByteWriter();
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
-            byteWriter.AddInt(id);
+            byteWriter.AddString(id);
             byteWriter.AddInt(payload.Length);
             byteWriter.AddBytes(payload);
 
             foreach (var client in _networkClientsTable.Values)
             {
-                _udpTransport.Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
+                Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
             }
         }
 
@@ -85,11 +85,16 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var byteWriter = new ByteWriter();
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
-            byteWriter.AddInt(id);
+            byteWriter.AddString(id);
             byteWriter.AddInt(payload.Length);
             byteWriter.AddBytes(payload);
             
-            _udpTransport.Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
+            Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
+        }
+        
+        public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
+        {
+            MessageHandlersService.RegisterHandler(handler);
         }
         
         internal void Start()
@@ -175,7 +180,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 {
                     var result = await _udpTransport.ReceiveAsync();
                     var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
-                
+                    Debug.Log("Received");
                     _receiveMessagesQueue.Enqueue(incomeMessage);
                 }
                 catch (Exception e)
@@ -243,7 +248,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private void HandleNetworkMessage(byte[] payload)
         {
             var byteReader = new ByteReader(payload, 2);
-            var networkMessageId = byteReader.ReadInt32();
+            var networkMessageId = byteReader.ReadString();
             var payloadLength = byteReader.ReadInt32();
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);
 

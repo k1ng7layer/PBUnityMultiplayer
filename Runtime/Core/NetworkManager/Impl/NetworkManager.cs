@@ -13,7 +13,6 @@ using PBUnityMultiplayer.Runtime.Core.Connection.Server;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
-using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -59,8 +58,27 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             set => _serverAuthentication = value;
         }
 
-        public GameServer Sever => _server;
-        public GameClient Client => _client;
+        public GameServer Server
+        {
+            get
+            {
+                if (_server == null)
+                    _server = new GameServer(networkConfiguration);
+
+                return _server;
+            }
+        }
+
+        public GameClient Client
+        {
+            get
+            {
+                if (_client == null)
+                    _client = new GameClient(networkConfiguration);
+                
+                return _client;
+            }
+        }
         
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
@@ -70,8 +88,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         public void StartServer()
         {
-            _server = new GameServer(networkConfiguration);
-            _server.Start();
+            Server.Start();
             
             _server.ClientConnected += ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
@@ -79,18 +96,17 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         
         public void StopServer()
         {
-            _server.Stop();
-            _server.ClientConnected -= ServerHandleNewConnection;
+            Server.Stop();
+            Server.ClientConnected -= ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
         }
         
         private void StartClient()
         {
-            _client = new GameClient(networkConfiguration);
-            _client.Start();
+            Client.Start();
 
-            _client.LocalClientConnected += OnLocalClientConnected;
-            _client.LocalClientAuthenticated += OnClientAuthenticated;
+            Client.LocalClientConnected += OnLocalClientConnected;
+            Client.LocalClientAuthenticated += OnClientAuthenticated;
         }
 
         public void StopClient()
@@ -125,27 +141,11 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             return tcs.Task;
         }
 
-        public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
-        {
-            MessageHandlersService.RegisterHandler(handler);
-        }
-
-        private void InvokeMessageHandler<T>(T data)
-        {
-            var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
-            
-            if(!hasId)
-                return;
-
-            var payload = BinarySerializationHelper.Serialize(data);
-            
-            var byteWriter = new ByteWriter();
-            
-            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
-            byteWriter.AddInt(id);
-            byteWriter.AddBytes(payload);
-        }
-
+        // public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
+        // {
+        //     MessageHandlersService.RegisterHandler(handler);
+        // }
+        
         private void OnLocalClientConnected()
         {
             ClientConnectedToServer?.Invoke();

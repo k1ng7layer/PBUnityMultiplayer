@@ -10,7 +10,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager
 {
     public interface INetworkManager
     {
-        public GameServer Sever { get; }
+        public GameServer Server { get; }
         public GameClient Client { get; }
         event Action ClientConnectedToServer;
         event Action<NetworkClient> SeverAuthenticated;
@@ -18,6 +18,5 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager
         void StartServer();
         void StopServer();
         UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);
-        void RegisterMessageHandler<T>(Action<T> handler) where T : struct;
     }
 }

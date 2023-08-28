@@ -7,6 +7,8 @@ using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
@@ -15,7 +17,7 @@ using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
-    internal class GameServer
+    public class GameServer
     {
         private readonly INetworkConfiguration _networkConfiguration;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
@@ -24,19 +26,71 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private UdpTransport _udpTransport;
         private bool _isRunning;
         private int _nextId;
+        internal IMessageHandlersService _messageHandlersService;
 
-        public GameServer(INetworkConfiguration networkConfiguration)
+        internal GameServer(INetworkConfiguration networkConfiguration)
         {
             _networkConfiguration = networkConfiguration;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
 
-        public Action<NetworkClient, byte[]> ClientConnected;
-        public event Action<int> ClientDisconnected;
-        public event Action<int> ClientReconnected;
+        internal IMessageHandlersService MessageHandlersService
+        {
+            get
+            {
+                if (_messageHandlersService == null)
+                    _messageHandlersService = new NetworkMessageHandlersService();
 
-        public void Start()
+                return _messageHandlersService;
+            }
+            set => _messageHandlersService = value;
+        }
+
+        internal Action<NetworkClient, byte[]> ClientConnected;
+        internal event Action<int> ClientDisconnected;
+        internal event Action<int> ClientReconnected;
+
+        public void SendMessageToAll<T>(T message, ESendMode sendMode)
+        {
+            var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
+            if(!hasId)
+                return;
+
+            var payload = BinarySerializationHelper.Serialize(message);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddInt(id);
+            byteWriter.AddBytes(payload);
+
+            foreach (var client in _networkClientsTable.Values)
+            {
+                _udpTransport.Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
+            }
+        }
+
+        public void SendMessage<T>(T message, int networkClientId, ESendMode sendMode)
+        {
+            var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
+            var hasClient = ConnectedPlayers.TryGetValue(networkClientId, out var client);
+            
+            if(!hasId ||!hasClient)
+                return;
+
+            var payload = BinarySerializationHelper.Serialize(message);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessageHandler);
+            byteWriter.AddInt(id);
+            byteWriter.AddBytes(payload);
+            
+            _udpTransport.Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
+        }
+        
+        internal void Start()
         {
             var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
 
@@ -62,14 +116,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             Task.Run(async () => await Receive());
         }
 
-        public void Update()
+        internal void Update()
         {
             ProcessReceiveQueue();
             ProcessSendQueue();
             //Receive();
         }
 
-        public void Send(
+        internal void Send(
             byte[] data, 
             NetworkClient networkClient, 
             ESendMode sendMode
@@ -80,7 +134,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _sendMessagesQueue.Enqueue(outcomeMessage);
         }
         
-        public void Send(
+        internal void Send(
             byte[] data, 
             IPEndPoint remoteEndPoint, 
             ESendMode sendMode
@@ -91,7 +145,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _sendMessagesQueue.Enqueue(outcomeMessage);
         }
 
-        public void DisconnectClient(int clientId, string reason)
+        internal void DisconnectClient(int clientId, string reason)
         {
             if (_networkClientsTable.TryGetValue(clientId, out var client))
             {
@@ -105,7 +159,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             }
         }
         
-        public void Stop()
+        internal void Stop()
         {
             _isRunning = false;
             _udpTransport.Stop();

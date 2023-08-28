@@ -58,6 +58,9 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             }
             set => _serverAuthentication = value;
         }
+
+        public GameServer Sever => _server;
+        public GameClient Client => _client;
         
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
@@ -127,7 +130,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             MessageHandlersService.RegisterHandler(handler);
         }
 
-        public void InvokeMessageHandler<T>(T data)
+        private void InvokeMessageHandler<T>(T data)
         {
             var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
             

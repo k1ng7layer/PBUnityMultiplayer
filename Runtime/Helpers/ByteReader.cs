@@ -48,6 +48,16 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             return result;
         }
 
+        public float ReadFloat()
+        {
+            var intSpan = new Span<byte>(_data, _readPosition, sizeof(float));
+            var value = BitConverter.ToSingle(intSpan);
+
+            _readPosition += 4;
+            
+            return value;
+        }
+
         public byte[] ReadBytes(int count)
         {
             if (_readPosition + count > _data.Length)

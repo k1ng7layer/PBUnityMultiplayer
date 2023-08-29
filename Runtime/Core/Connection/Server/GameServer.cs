@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
-using PBUnityMultiplayer.Runtime.Configuration;
+using PBUnityMultiplayer.Runtime.Configuration.Connection;
+using PBUnityMultiplayer.Runtime.Configuration.Prefabs;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
-using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Core.Spawn;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
@@ -19,6 +21,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
     public class GameServer
     {
+        private readonly INetworkPrefabsBase _networkPrefabsBase;
         private readonly INetworkConfiguration _networkConfiguration;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
@@ -27,25 +30,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private bool _isRunning;
         private int _nextId;
         internal IMessageHandlersService _messageHandlersService;
+        private readonly INetworkSpawnService _networkSpawnService;
 
-        internal GameServer(INetworkConfiguration networkConfiguration)
+        internal GameServer(
+            INetworkConfiguration networkConfiguration, 
+            INetworkSpawnService networkSpawnService,
+            INetworkPrefabsBase networkPrefabsBase,
+            IMessageHandlersService messageHandlersService)
         {
             _networkConfiguration = networkConfiguration;
+            _networkSpawnService = networkSpawnService;
+            _networkPrefabsBase = networkPrefabsBase;
+            _messageHandlersService = messageHandlersService;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
-
-        internal IMessageHandlersService MessageHandlersService
-        {
-            get
-            {
-                if (_messageHandlersService == null)
-                    _messageHandlersService = new NetworkMessageHandlersService();
-
-                return _messageHandlersService;
-            }
-            set => _messageHandlersService = value;
-        }
 
         internal Action<NetworkClient, byte[]> ClientConnected;
         internal event Action<int> ClientDisconnected;
@@ -53,7 +52,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         public void SendMessageToAll<T>(T message, ESendMode sendMode)
         {
-            var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
+            var hasId = _messageHandlersService.TryGetHandlerId<T>(out var id);
             if(!hasId)
                 return;
 
@@ -74,7 +73,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         public void SendMessage<T>(T message, int networkClientId, ESendMode sendMode)
         {
-            var hasId = MessageHandlersService.TryGetHandlerId<T>(out var id);
+            var hasId = _messageHandlersService.TryGetHandlerId<T>(out var id);
             var hasClient = ConnectedPlayers.TryGetValue(networkClientId, out var client);
             
             if(!hasId ||!hasClient)
@@ -94,9 +93,48 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         
         public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
         {
-            MessageHandlersService.RegisterHandler(handler);
+            _messageHandlersService.RegisterHandler(handler);
+        }
+
+        public void RegisterSpawnHandler<T>(Action<T> handler) where T: struct
+        {
+            _networkSpawnService.RegisterSpawnHandler(handler);
         }
         
+        public void SpawnOnServerAndClients<T>(
+            int prefabId, 
+            NetworkClient owner, 
+            Vector3 position, 
+            Quaternion rotation, 
+            int? parentObjectId, 
+            T message) where T: struct
+        {
+            SpawnResult result;
+            
+            if (parentObjectId.HasValue)
+            {
+                result = _networkSpawnService.Spawn<T>(prefabId, owner, position, rotation, parentObjectId.Value);
+            }
+            else
+            {
+                result = _networkSpawnService.Spawn<T>(prefabId, owner, position, rotation);
+            }
+
+            var byteWriter = new ByteWriter();
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
+            byteWriter.AddInt(owner.Id);
+            NetworkMessageSerializationHelper.SerializeSpawnResult(byteWriter, result);
+            var messageBytes = BinarySerializationHelper.Serialize(message);
+            byteWriter.AddBytes(messageBytes);
+
+            SendToAll(byteWriter.Data, ESendMode.Reliable);
+        }
+        
+        public void SpawnOnServerAndClients<T>(int prefabId, T message) where T: struct
+        {
+            
+        }
+
         internal void Start()
         {
             var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
@@ -150,6 +188,19 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var outcomeMessage = new OutcomePendingMessage(data, remoteEndPoint, sendMode);
             
             _sendMessagesQueue.Enqueue(outcomeMessage);
+        }
+        
+        internal void SendToAll(
+            byte[] data,
+            ESendMode sendMode
+        )
+        {
+            foreach (var client in _networkClientsTable.Values)
+            {
+                var outcomeMessage = new OutcomePendingMessage(data, client.RemoteEndpoint, sendMode);
+            
+                _sendMessagesQueue.Enqueue(outcomeMessage);
+            }
         }
 
         internal void DisconnectClient(int clientId, string reason)
@@ -252,7 +303,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var payloadLength = byteReader.ReadInt32();
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);
 
-            MessageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
+            _messageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
         }
 
         private void HandleNewConnection(byte[] messagePayload, IPEndPoint remoteEndPoint)

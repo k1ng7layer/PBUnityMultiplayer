@@ -1,4 +1,4 @@
-﻿namespace PBUnityMultiplayer.Runtime.Configuration
+﻿namespace PBUnityMultiplayer.Runtime.Configuration.Connection
 {
     public interface INetworkConfiguration
     {

@@ -10,6 +10,7 @@
         Custom,
         AuthenticationResult,
         NetworkMessage,
+        Spawn,
         None
     }
 }

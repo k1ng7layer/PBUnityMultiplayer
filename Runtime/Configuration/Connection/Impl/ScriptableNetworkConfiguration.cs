@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace PBUnityMultiplayer.Runtime.Configuration.Impl
+namespace PBUnityMultiplayer.Runtime.Configuration.Connection.Impl
 {
     [CreateAssetMenu(menuName = "Settings/" + nameof(ScriptableNetworkConfiguration), fileName = nameof(ScriptableNetworkConfiguration))]
     public class ScriptableNetworkConfiguration : ScriptableObject, 

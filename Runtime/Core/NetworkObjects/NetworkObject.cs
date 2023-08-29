@@ -13,16 +13,18 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkObjects
         private Quaternion _lastRealRotation;
         
         public ushort Id { get; private set; }
-
-        internal void Initialize(ushort id, bool isLocal)
+        public bool Spawned { get; private set; }
+        
+        internal void Spawn(ushort id, bool isLocal)
         {
             Id = id;
             isLocalObject = isLocal;
+            Spawned = true;
         }
 
-        private void FixedUpdate()
+        internal void DeSpawn()
         {
-          
+            Spawned = false;
         }
     }
 }

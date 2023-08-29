@@ -5,7 +5,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
 {
     public static class MessageHelper
     {
-        public static ENetworkMessageType GetMessageType(byte[] data)
+        internal static ENetworkMessageType GetMessageType(byte[] data)
         {
             var byteSpan = new Span<byte>(data);
             var messageTypeSpan = byteSpan.Slice(0, 2);

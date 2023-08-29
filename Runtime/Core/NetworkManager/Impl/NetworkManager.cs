@@ -10,6 +10,8 @@ using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
 using PBUnityMultiplayer.Runtime.Core.Connection.Server;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
@@ -27,8 +29,22 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         private GameServer _server;
         private GameClient _client;
         private EventHandler<AuthenticateResult> _clientConnectionEventHandler;
-        private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
         private AuthenticationServiceBase _serverAuthentication;
+        internal IMessageHandlersService _messageHandlersService;
+
+        internal IMessageHandlersService MessageHandlersService
+        {
+            get
+            {
+                if (_messageHandlersService == null)
+                    _messageHandlersService = new NetworkMessageHandlersService();
+
+                return _messageHandlersService;
+            }
+            set => _messageHandlersService = value;
+        }
+        
+        private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
 
         public AuthenticationServiceBase AuthenticationServiceBase
         {
@@ -41,6 +57,28 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             }
             set => _serverAuthentication = value;
         }
+
+        public GameServer Server
+        {
+            get
+            {
+                if (_server == null)
+                    _server = new GameServer(networkConfiguration);
+
+                return _server;
+            }
+        }
+
+        public GameClient Client
+        {
+            get
+            {
+                if (_client == null)
+                    _client = new GameClient(networkConfiguration);
+                
+                return _client;
+            }
+        }
         
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
@@ -50,8 +88,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         public void StartServer()
         {
-            _server = new GameServer(networkConfiguration);
-            _server.Start();
+            Server.Start();
             
             _server.ClientConnected += ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
@@ -59,18 +96,17 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         
         public void StopServer()
         {
-            _server.Stop();
-            _server.ClientConnected -= ServerHandleNewConnection;
+            Server.Stop();
+            Server.ClientConnected -= ServerHandleNewConnection;
             AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
         }
         
         private void StartClient()
         {
-            _client = new GameClient(networkConfiguration);
-            _client.Start();
+            Client.Start();
 
-            _client.LocalClientConnected += OnLocalClientConnected;
-            _client.LocalClientAuthenticated += OnClientAuthenticated;
+            Client.LocalClientConnected += OnLocalClientConnected;
+            Client.LocalClientAuthenticated += OnClientAuthenticated;
         }
 
         public void StopClient()
@@ -105,6 +141,11 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             return tcs.Task;
         }
 
+        // public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
+        // {
+        //     MessageHandlersService.RegisterHandler(handler);
+        // }
+        
         private void OnLocalClientConnected()
         {
             ClientConnectedToServer?.Invoke();

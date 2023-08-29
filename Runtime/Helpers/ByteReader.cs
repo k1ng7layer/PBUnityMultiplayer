@@ -14,10 +14,10 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             _data = data;
         }
         
-        public ByteReader(byte[] data, int offset)
+        public ByteReader(byte[] data, int startOffset)
         {
             _data = data;
-            _readPosition = offset;
+            _readPosition = startOffset;
         }
 
         public int ReadInt32()
@@ -38,7 +38,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
         public string ReadString()
         {
             var size = ReadInt32();
-             var stringBytes =  size == 0 ? 
+            var stringBytes = size == 0 ? 
                 Array.Empty<byte>() : new Span<byte>(_data).Slice(_readPosition, size);
 
             var result = Encoding.UTF8.GetString(stringBytes);
@@ -46,6 +46,21 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             _readPosition += size;
             
             return result;
+        }
+
+        public byte[] ReadBytes(int count)
+        {
+            if (_readPosition + count > _data.Length)
+                throw new IndexOutOfRangeException();
+            
+            var bytes = new byte[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                bytes[i] = _data[_readPosition + i];
+            }
+
+            return bytes;
         }
         
         public string ReadString(out int stringLength)

@@ -11,6 +11,7 @@
         AuthenticationResult,
         NetworkMessage,
         Spawn,
+        SpawnHandler,
         None
     }
 }

@@ -10,11 +10,13 @@ using PBUnityMultiplayer.Runtime.Configuration.Connection;
 using PBUnityMultiplayer.Runtime.Configuration.Prefabs;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
-using PBUnityMultiplayer.Runtime.Core.Spawn;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnedRepository;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
+using PBUnityMultiplayer.Runtime.Utils.IdGenerator;
 using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
@@ -23,25 +25,33 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
     {
         private readonly INetworkPrefabsBase _networkPrefabsBase;
         private readonly INetworkConfiguration _networkConfiguration;
+        private readonly INetworkSpawnService _networkSpawnService;
+        private readonly INetworkSpawnHandlerService _networkSpawnHandlerService;
+        private readonly IIdGenerator<ushort> _networkObjectIdGenerator;
+        private readonly INetworkSpawnedObjectsRepository _networkSpawnedObjectsRepository;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
+        
         private UdpTransport _udpTransport;
         private bool _isRunning;
         private int _nextId;
         internal IMessageHandlersService _messageHandlersService;
-        private readonly INetworkSpawnService _networkSpawnService;
 
         internal GameServer(
             INetworkConfiguration networkConfiguration, 
             INetworkSpawnService networkSpawnService,
             INetworkPrefabsBase networkPrefabsBase,
-            IMessageHandlersService messageHandlersService)
+            IMessageHandlersService messageHandlersService,
+            INetworkSpawnHandlerService networkSpawnHandlerService,
+            INetworkSpawnedObjectsRepository networkSpawnedObjectsRepository)
         {
             _networkConfiguration = networkConfiguration;
             _networkSpawnService = networkSpawnService;
             _networkPrefabsBase = networkPrefabsBase;
             _messageHandlersService = messageHandlersService;
+            _networkSpawnHandlerService = networkSpawnHandlerService;
+            _networkSpawnedObjectsRepository = networkSpawnedObjectsRepository;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
@@ -96,45 +106,63 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _messageHandlersService.RegisterHandler(handler);
         }
 
-        public void RegisterSpawnHandler<T>(Action<T> handler) where T: struct
+        public void RegisterSpawnHandler<T>(NetworkSpawnHandler<T> handler) where T: struct
         {
-            _networkSpawnService.RegisterSpawnHandler(handler);
+            _networkSpawnHandlerService.RegisterHandler(handler);
         }
         
-        public void SpawnOnServerAndClients<T>(
+        public void Spawn<T>(
             int prefabId, 
             NetworkClient owner, 
             Vector3 position, 
-            Quaternion rotation, 
-            int? parentObjectId, 
+            Quaternion rotation,
             T message) where T: struct
         {
-            SpawnResult result;
-            
-            if (parentObjectId.HasValue)
-            {
-                result = _networkSpawnService.Spawn<T>(prefabId, owner, position, rotation, parentObjectId.Value);
-            }
-            else
-            {
-                result = _networkSpawnService.Spawn<T>(prefabId, owner, position, rotation);
-            }
+            var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
+            var id = _networkObjectIdGenerator.Next();
+            spawnedObject.Spawn(id, false);
+            owner.AddOwnership(spawnedObject);
 
-            var byteWriter = new ByteWriter();
-            byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
-            byteWriter.AddInt(owner.Id);
-            NetworkMessageSerializationHelper.SerializeSpawnResult(byteWriter, result);
+            _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
+            
+            _networkSpawnedObjectsRepository.TryAdd(id, spawnedObject);
+            
             var messageBytes = BinarySerializationHelper.Serialize(message);
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
+            byteWriter.AddInt(owner.Id);
+            byteWriter.AddInt(prefabId);
+            byteWriter.AddUshort(id);
+            byteWriter.AddString(handlerId);
             byteWriter.AddBytes(messageBytes);
 
             SendToAll(byteWriter.Data, ESendMode.Reliable);
         }
         
-        public void SpawnOnServerAndClients<T>(int prefabId, T message) where T: struct
+        public void Spawn(
+            int prefabId, 
+            NetworkClient owner, 
+            Vector3 position, 
+            Quaternion rotation)
         {
-            
-        }
+            var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
+            var id = _networkObjectIdGenerator.Next();
+            spawnedObject.Spawn(id, false);
+            owner.AddOwnership(spawnedObject);
 
+            _networkSpawnedObjectsRepository.TryAdd(id, spawnedObject);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
+            byteWriter.AddInt(owner.Id);
+            byteWriter.AddInt(prefabId);
+            byteWriter.AddUshort(id);
+
+            SendToAll(byteWriter.Data, ESendMode.Reliable);
+        }
+        
         internal void Start()
         {
             var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
@@ -293,7 +321,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.NetworkMessage:
                     HandleNetworkMessage(messagePayload);
                     break;
+                case ENetworkMessageType.SpawnHandler:
+                    break;
             }
+        }
+
+        private void HandlerSpawnHandler(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload);
+            
         }
         
         private void HandleNetworkMessage(byte[] payload)

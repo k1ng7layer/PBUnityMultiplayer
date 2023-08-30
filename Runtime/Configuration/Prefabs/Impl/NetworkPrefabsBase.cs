@@ -5,7 +5,9 @@ using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl
 {
-    public class NetworkPrefabsBase : INetworkPrefabsBase
+    [CreateAssetMenu(menuName = "Settings/" + nameof(NetworkPrefabsBase), fileName = nameof(NetworkPrefabsBase))]
+    public class NetworkPrefabsBase : ScriptableObject, 
+        INetworkPrefabsBase
     {
         [KeyValue(nameof(Prefab.id))] [SerializeField]
         private Prefab[] prefabs;

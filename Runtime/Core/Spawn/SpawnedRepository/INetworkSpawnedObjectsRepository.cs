@@ -2,7 +2,7 @@
 
 namespace PBUnityMultiplayer.Runtime.Core.Spawn.SpawnedRepository
 {
-    public interface INetworkSpawnedObjectsRepository
+    internal interface INetworkSpawnedObjectsRepository
     {
         bool TryAdd(int id, NetworkObject networkObject);
         bool TryRemove(int id);

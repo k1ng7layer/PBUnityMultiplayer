@@ -6,6 +6,7 @@ using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection.Impl;
+using PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
@@ -13,6 +14,9 @@ using PBUnityMultiplayer.Runtime.Core.Connection.Server;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnedRepository.Impl;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService.Impl;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -23,6 +27,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         INetworkManager
     {
         [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
+        [SerializeField] private NetworkPrefabsBase networkPrefabsBase;
         [SerializeField] private bool useAuthentication;
         
         private UdpTransport _udpTransport;
@@ -32,18 +37,6 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         private AuthenticationServiceBase _serverAuthentication;
         internal IMessageHandlersService _messageHandlersService;
 
-        internal IMessageHandlersService MessageHandlersService
-        {
-            get
-            {
-                if (_messageHandlersService == null)
-                    _messageHandlersService = new NetworkMessageHandlersService();
-
-                return _messageHandlersService;
-            }
-            set => _messageHandlersService = value;
-        }
-        
         private readonly Func<byte[], EConnectionResult> _connectionApprovalCallback;
 
         public AuthenticationServiceBase AuthenticationServiceBase
@@ -63,7 +56,21 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             get
             {
                 if (_server == null)
-                    _server = new GameServer(networkConfiguration);
+                {
+                    var spawnedObjectRepository = new NetworkSpawnedObjectsRepository();
+                    var serverSpawnService = new NetworkSpawnService(networkPrefabsBase);
+                    var networkMessageService = new NetworkMessageHandlersService();
+                    var spawnHandlerService = new NetworkSpawnHandlerService();
+                    
+                    _server = new GameServer(
+                        networkConfiguration, 
+                        serverSpawnService, 
+                        networkPrefabsBase, 
+                        networkMessageService,
+                        spawnHandlerService,
+                        spawnedObjectRepository);
+                }
+                   
 
                 return _server;
             }

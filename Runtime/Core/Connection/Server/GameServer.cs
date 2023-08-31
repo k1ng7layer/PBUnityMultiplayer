@@ -29,6 +29,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private readonly INetworkSpawnHandlerService _networkSpawnHandlerService;
         private readonly IIdGenerator<ushort> _networkObjectIdGenerator;
         private readonly INetworkSpawnedObjectsRepository _networkSpawnedObjectsRepository;
+        private readonly IMessageHandlersService _messageHandlersService;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
@@ -36,7 +37,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private UdpTransport _udpTransport;
         private bool _isRunning;
         private int _nextId;
-        internal IMessageHandlersService _messageHandlersService;
+       
 
         internal GameServer(
             INetworkConfiguration networkConfiguration, 
@@ -83,10 +84,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         public void SendMessage<T>(T message, int networkClientId, ESendMode sendMode)
         {
-            var hasId = _messageHandlersService.TryGetHandlerId<T>(out var id);
+            var handlerId = typeof(T).FullName;
             var hasClient = ConnectedPlayers.TryGetValue(networkClientId, out var client);
             
-            if(!hasId ||!hasClient)
+            if(!hasClient)
                 return;
 
             var payload = BinarySerializationHelper.Serialize(message);
@@ -94,7 +95,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var byteWriter = new ByteWriter();
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
-            byteWriter.AddString(id);
+            byteWriter.AddString(handlerId);
             byteWriter.AddInt(payload.Length);
             byteWriter.AddBytes(payload);
             
@@ -123,7 +124,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             spawnedObject.Spawn(objectId, false);
             owner.AddOwnership(spawnedObject);
 
-            _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
+            var hasHandler = _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
+
+            if (!hasHandler)
+                throw new Exception($"[{nameof(GameServer)}] can't process unregister handler");
             
             _networkSpawnedObjectsRepository.TryAdd(objectId, spawnedObject);
             
@@ -324,9 +328,40 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.SpawnHandler:
                     HandleSpawnHandler(messagePayload);
                     break;
+                case ENetworkMessageType.Spawn:
+                    HandleSpawn(messagePayload);
+                    break;
             }
         }
 
+        private void HandleSpawn(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            var clientId = byteReader.ReadInt32();
+            var prefabId = byteReader.ReadInt32();
+            var position = byteReader.ReadVector3();
+            var rotation = byteReader.ReadQuaternion();
+            var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
+            var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
+            
+            if(!hasClient)
+                return;
+            
+            if(!client.IsApproved)
+                return;
+            
+            var objectId = _networkObjectIdGenerator.Next();
+            
+            networkObject.Spawn(objectId, false);
+            client.AddOwnership(networkObject);
+
+            var byteWriter = new ByteWriter();
+            byteWriter.AddBytes(payload);
+            byteWriter.AddUshort(objectId);
+            
+            SendToAll(byteWriter.Data, ESendMode.Reliable);
+        }
+        
         private void HandleSpawnHandler(byte[] payload)
         {
             var byteReader = new ByteReader(payload, 2);
@@ -348,6 +383,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var objectId = _networkObjectIdGenerator.Next();
             
             client.AddOwnership(networkObject);
+            networkObject.Spawn(objectId, false);
             
             _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
 

@@ -83,10 +83,13 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                 if (_client == null)
                 {
                     var spawnHandlerService = new NetworkSpawnHandlerService();
+                    var spawnService = new NetworkSpawnService(networkPrefabsBase);
+                    
                     _client = new GameClient(
                         networkConfiguration, 
                         networkPrefabsBase, 
-                        spawnHandlerService);
+                        spawnHandlerService,
+                        spawnService);
                 }
                 
                 return _client;

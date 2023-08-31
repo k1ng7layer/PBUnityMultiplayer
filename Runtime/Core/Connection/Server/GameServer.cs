@@ -45,7 +45,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             INetworkPrefabsBase networkPrefabsBase,
             IMessageHandlersService messageHandlersService,
             INetworkSpawnHandlerService networkSpawnHandlerService,
-            INetworkSpawnedObjectsRepository networkSpawnedObjectsRepository)
+            INetworkSpawnedObjectsRepository networkSpawnedObjectsRepository,
+            IIdGenerator<ushort> idGenerator)
         {
             _networkConfiguration = networkConfiguration;
             _networkSpawnService = networkSpawnService;
@@ -53,6 +54,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _messageHandlersService = messageHandlersService;
             _networkSpawnHandlerService = networkSpawnHandlerService;
             _networkSpawnedObjectsRepository = networkSpawnedObjectsRepository;
+            _networkObjectIdGenerator = idGenerator;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
@@ -134,11 +136,16 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var messageBytes = BinarySerializationHelper.Serialize(message);
             var byteWriter = new ByteWriter();
             
+            _networkSpawnHandlerService.CallHandler(handlerId, messageBytes, spawnedObject);
+            
             byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
             byteWriter.AddInt(owner.Id);
             byteWriter.AddInt(prefabId);
             byteWriter.AddUshort(objectId);
+            byteWriter.AddVector3(position);
+            byteWriter.AddQuaternion(rotation);
             byteWriter.AddString(handlerId);
+            byteWriter.AddInt(messageBytes.Length);
             byteWriter.AddBytes(messageBytes);
 
             SendToAll(byteWriter.Data, ESendMode.Reliable);
@@ -310,7 +317,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
             var messagePayload = incomePendingMessage.Payload;
-            
+            Debug.Log($"HandleIncomeMessage = {messageType}");
             switch (messageType)
             {
                 case ENetworkMessageType.ConnectionRequest:

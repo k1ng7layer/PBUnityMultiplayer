@@ -96,6 +96,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
         
         public void AddVector3(Vector3 value)
         {
+            Debug.Log($"AddVector3");
             AddFloat(value.x);
             AddFloat(value.y);
             AddFloat(value.z);
@@ -103,6 +104,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
         
         public void AddQuaternion(Quaternion value)
         {
+            Debug.Log($"AddQuaternion");
             AddFloat(value.x);
             AddFloat(value.y);
             AddFloat(value.z);

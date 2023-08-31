@@ -19,6 +19,7 @@ using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService.Impl;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
+using PBUnityMultiplayer.Runtime.Utils.IdGenerator.Impl;
 using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
@@ -68,7 +69,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                         networkPrefabsBase, 
                         networkMessageService,
                         spawnHandlerService,
-                        spawnedObjectRepository);
+                        spawnedObjectRepository, new NetworkObjectIdGenerator());
                 }
                    
 

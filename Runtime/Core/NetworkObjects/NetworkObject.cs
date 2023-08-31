@@ -6,8 +6,8 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkObjects
     {
         [SerializeField] private bool syncPosition;
         [SerializeField] private bool syncRotation;
-        
-        private bool isLocalObject;
+
+        public bool IsLocalObject { get; private set; }
 
         private Vector3 _lastRealPosition;
         private Quaternion _lastRealRotation;
@@ -18,7 +18,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkObjects
         internal void Spawn(ushort id, bool isLocal)
         {
             Id = id;
-            isLocalObject = isLocal;
+            IsLocalObject = isLocal;
             Spawned = true;
         }
 

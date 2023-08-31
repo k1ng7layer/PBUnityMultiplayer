@@ -9,11 +9,6 @@ namespace PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl
     {
         private readonly Dictionary<string, List<PackedNetworkSpawnHandler>> _registeredHandlersTable = new();
 
-        public NetworkSpawnHandlerService()
-        {
-            Debug.Log("NetworkMessageHandlersService");
-        }
-
         public bool TryGetHandlerId<T>(out string id)
         {
             id = typeof(T).FullName.ToString();

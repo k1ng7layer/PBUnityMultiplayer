@@ -8,11 +8,6 @@ namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
     {
         private readonly Dictionary<string, List<NetworkMessageHandler>> _registeredHandlersTable = new();
 
-        public NetworkMessageHandlersService()
-        {
-            Debug.Log("NetworkMessageHandlersService");
-        }
-
         public bool TryGetHandlerId<T>(out string id)
         {
             id = typeof(T).FullName.ToString();

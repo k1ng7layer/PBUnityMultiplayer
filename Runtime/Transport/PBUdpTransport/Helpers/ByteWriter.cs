@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Numerics;
 using System.Text;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
 {
@@ -96,17 +96,17 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
         
         public void AddVector3(Vector3 value)
         {
-            AddFloat(value.X);
-            AddFloat(value.Y);
-            AddFloat(value.Z);
+            AddFloat(value.x);
+            AddFloat(value.y);
+            AddFloat(value.z);
         }
         
         public void AddQuaternion(Quaternion value)
         {
-            AddFloat(value.X);
-            AddFloat(value.Y);
-            AddFloat(value.Z);
-            AddFloat(value.W);
+            AddFloat(value.x);
+            AddFloat(value.y);
+            AddFloat(value.z);
+            AddFloat(value.w);
         }
 
         private void CheckSpaceAndCopy(int requiredSpace)

@@ -119,13 +119,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             T message) where T: struct
         {
             var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
-            var id = _networkObjectIdGenerator.Next();
-            spawnedObject.Spawn(id, false);
+            var objectId = _networkObjectIdGenerator.Next();
+            spawnedObject.Spawn(objectId, false);
             owner.AddOwnership(spawnedObject);
 
             _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
             
-            _networkSpawnedObjectsRepository.TryAdd(id, spawnedObject);
+            _networkSpawnedObjectsRepository.TryAdd(objectId, spawnedObject);
             
             var messageBytes = BinarySerializationHelper.Serialize(message);
             var byteWriter = new ByteWriter();
@@ -133,7 +133,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
             byteWriter.AddInt(owner.Id);
             byteWriter.AddInt(prefabId);
-            byteWriter.AddUshort(id);
+            byteWriter.AddUshort(objectId);
             byteWriter.AddString(handlerId);
             byteWriter.AddBytes(messageBytes);
 
@@ -322,14 +322,41 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     HandleNetworkMessage(messagePayload);
                     break;
                 case ENetworkMessageType.SpawnHandler:
+                    HandleSpawnHandler(messagePayload);
                     break;
             }
         }
 
-        private void HandlerSpawnHandler(byte[] payload)
+        private void HandleSpawnHandler(byte[] payload)
         {
-            var byteReader = new ByteReader(payload);
+            var byteReader = new ByteReader(payload, 2);
+            var clientId = byteReader.ReadInt32();
+            var prefabId = byteReader.ReadInt32();
+            var position = byteReader.ReadVector3();
+            var rotation = byteReader.ReadQuaternion();
+            var handlerId = byteReader.ReadString();
+            var payloadSize = byteReader.ReadInt32();
+            var messagePayload = byteReader.ReadBytes(payloadSize);
+
+            var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
+            var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
             
+            //TODO:
+            if(!hasClient)
+                return;
+
+            var objectId = _networkObjectIdGenerator.Next();
+            
+            client.AddOwnership(networkObject);
+            
+            _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
+
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddBytes(payload);
+            byteWriter.AddUshort(objectId);
+
+            SendToAll(byteWriter.Data, ESendMode.Reliable);
         }
         
         private void HandleNetworkMessage(byte[] payload)
@@ -348,17 +375,6 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
             if (messageType == ENetworkMessageType.ConnectionRequest)
             {
-                var byteReader = new ByteReader(messagePayload, 2);
-                // var playerIpString = byteReader.ReadString(out var strSize);
-                // var playerPort = byteReader.ReadInt32();
-                    
-                // var parseResult = IPAddress.TryParse(playerIpString, out var ipResult);
-                //     
-                // if(!parseResult)
-                //     return;
-                //
-                // var remoteEndpoint = new IPEndPoint(ipResult, playerPort);
-
                 var clientId = _nextId++;
                 
                 var networkClient = new NetworkClient(clientId, remoteEndPoint);

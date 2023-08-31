@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Text;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Helpers
 {
@@ -46,6 +47,25 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             _readPosition += size;
             
             return result;
+        }
+        
+        public Vector3 ReadVector3()
+        {
+            var x = ReadFloat();
+            var y = ReadFloat();
+            var z = ReadFloat();
+            
+            return new Vector3(x, y, z);
+        }
+        
+        public Quaternion ReadQuaternion()
+        {
+            var x = ReadFloat();
+            var y = ReadFloat();
+            var z = ReadFloat();
+            var w = ReadFloat();
+            
+            return new Quaternion(x, y, z, w);
         }
 
         public float ReadFloat()

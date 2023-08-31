@@ -7,9 +7,11 @@ using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection;
+using PBUnityMultiplayer.Runtime.Configuration.Prefabs;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
@@ -20,6 +22,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
     public class GameClient : Peer
     {
         private readonly INetworkConfiguration _networkConfiguration;
+        private readonly INetworkPrefabsBase _networkPrefabsBase;
+        private readonly INetworkSpawnHandlerService _networkSpawnHandlerService;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
@@ -30,9 +34,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         private bool _isRunning;
         internal IMessageHandlersService _messageHandlersService;
         
-        internal GameClient(INetworkConfiguration networkConfiguration)
+        internal GameClient(INetworkConfiguration networkConfiguration, 
+            INetworkPrefabsBase networkPrefabsBase,
+            INetworkSpawnHandlerService networkSpawnHandlerService)
         {
             _networkConfiguration = networkConfiguration;
+            _networkPrefabsBase = networkPrefabsBase;
+            _networkSpawnHandlerService = networkSpawnHandlerService;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
@@ -113,6 +121,42 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             ProcessReceiveQueue();
             //ProcessSendQueue();
             //Receive();
+        }
+
+        public void Spawn(int prefabId, Vector3 position, Quaternion rotation)
+        {
+            var prefab = _networkPrefabsBase.Get(prefabId);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
+            byteWriter.AddInt(LocalClient.Id);
+            byteWriter.AddInt(prefabId);
+            
+            Send(byteWriter.Data, _serverEndPoint, ESendMode.Reliable);
+        }
+        
+        public void Spawn<T>(int prefabId, Vector3 position, Quaternion rotation, T message)
+        {
+            var prefab = _networkPrefabsBase.Get(prefabId);
+            var hasHandler = _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
+            
+            if(!hasHandler)
+                return;
+            
+            var messageBytes = BinarySerializationHelper.Serialize(message);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
+            byteWriter.AddInt(LocalClient.Id);
+            byteWriter.AddInt(prefabId);
+            byteWriter.AddVector3(position);
+            byteWriter.AddQuaternion(rotation);
+            byteWriter.AddString(handlerId);
+            byteWriter.AddBytes(messageBytes);
+            
+            Send(byteWriter.Data, _serverEndPoint, ESendMode.Reliable);
         }
 
         internal void Send(

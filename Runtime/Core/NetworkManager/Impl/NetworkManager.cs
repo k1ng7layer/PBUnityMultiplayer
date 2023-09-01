@@ -32,8 +32,8 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
         [SerializeField] private bool useAuthentication;
         
         private UdpTransport _udpTransport;
-        private GameServer _server;
-        private GameClient _client;
+        //private GameServer _server;
+        //private GameClient _client;
         private EventHandler<AuthenticateResult> _clientConnectionEventHandler;
         private AuthenticationServiceBase _serverAuthentication;
         internal IMessageHandlersService _messageHandlersService;
@@ -52,51 +52,31 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
             set => _serverAuthentication = value;
         }
 
-        public GameServer Server
-        {
-            get
-            {
-                if (_server == null)
-                {
-                    var spawnedObjectRepository = new NetworkSpawnedObjectsRepository();
-                    var serverSpawnService = new NetworkSpawnService(networkPrefabsBase);
-                    var networkMessageService = new NetworkMessageHandlersService();
-                    var spawnHandlerService = new NetworkSpawnHandlerService();
-                    
-                    _server = new GameServer(
-                        networkConfiguration, 
-                        serverSpawnService, 
-                        networkPrefabsBase, 
-                        networkMessageService,
-                        spawnHandlerService,
-                        spawnedObjectRepository, new NetworkObjectIdGenerator());
-                }
-                   
+        // public GameServer Server
+        // {
+        //     get
+        //     {
+        //         if (_server == null)
+        //         {
+        //             var spawnedObjectRepository = new NetworkSpawnedObjectsRepository();
+        //             var serverSpawnService = new NetworkSpawnService(networkPrefabsBase);
+        //             var networkMessageService = new NetworkMessageHandlersService();
+        //             var spawnHandlerService = new NetworkSpawnHandlerService();
+        //             
+        //             _server = new GameServer(
+        //                 networkConfiguration, 
+        //                 serverSpawnService, 
+        //                 networkPrefabsBase, 
+        //                 networkMessageService,
+        //                 spawnHandlerService,
+        //                 spawnedObjectRepository, new NetworkObjectIdGenerator());
+        //         }
+        //            
+        //
+        //         return _server;
+        //     }
+        // }
 
-                return _server;
-            }
-        }
-
-        public GameClient Client
-        {
-            get
-            {
-                if (_client == null)
-                {
-                    var spawnHandlerService = new NetworkSpawnHandlerService();
-                    var spawnService = new NetworkSpawnService(networkPrefabsBase);
-                    
-                    _client = new GameClient(
-                        networkConfiguration, 
-                        networkPrefabsBase, 
-                        spawnHandlerService,
-                        spawnService);
-                }
-                
-                return _client;
-            }
-        }
-        
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
         public event Action<int> SeverClientDisconnected;
@@ -105,32 +85,32 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         public void StartServer()
         {
-            Server.Start();
-            
-            _server.ClientConnected += ServerHandleNewConnection;
-            AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
+            // Server.Start();
+            //
+            // _server.ClientConnected += ServerHandleNewConnection;
+            // AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
         }
         
         public void StopServer()
         {
-            Server.Stop();
-            Server.ClientConnected -= ServerHandleNewConnection;
-            AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
+            // Server.Stop();
+            // Server.ClientConnected -= ServerHandleNewConnection;
+            // AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
         }
         
         private void StartClient()
         {
-            Client.Start();
-
-            Client.LocalClientConnected += OnLocalClientConnected;
-            Client.LocalClientAuthenticated += OnClientAuthenticated;
+            // Client.Start();
+            //
+            // Client.LocalClientConnected += OnLocalClientConnected;
+            // Client.LocalClientAuthenticated += OnClientAuthenticated;
         }
 
         public void StopClient()
         {
-            _client.Stop();
-            _client.LocalClientConnected -= OnLocalClientConnected;
-            _client.LocalClientAuthenticated -= OnClientAuthenticated;
+            // _client.Stop();
+            // _client.LocalClientConnected -= OnLocalClientConnected;
+            // _client.LocalClientAuthenticated -= OnClientAuthenticated;
         }
 
         public UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
@@ -153,7 +133,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
                 tcs.TrySetResult(result);
             };
             
-            _client.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
+            //_client.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
             
             return tcs.Task;
         }
@@ -184,28 +164,28 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         private void OnServerAuthenticated(AuthenticateResult authenticateResult, NetworkClient client)
         {
-            //TODO: send message to all clients
-            var result = authenticateResult.ConnectionResult;
-            var byteWriter = new ByteWriter();
-
-            byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
-            byteWriter.AddUshort((ushort)result);
-            byteWriter.AddInt(client.Id);
-            byteWriter.AddString(authenticateResult.Message);
-            SeverAuthenticated?.Invoke(client);
-            
-            switch (result)
-            {
-                case EConnectionResult.Success:
-                    client.IsApproved = true;
-                    break;
-                case EConnectionResult.Reject:
-                case EConnectionResult.TimeOut:
-                    SeverClientDisconnected?.Invoke(client.Id);
-                    _server.DisconnectClient(client.Id, authenticateResult.Message);
-                    break;
-            }
-            _server.Send(byteWriter.Data, client, ESendMode.Reliable);
+            // //TODO: send message to all clients
+            // var result = authenticateResult.ConnectionResult;
+            // var byteWriter = new ByteWriter();
+            //
+            // byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
+            // byteWriter.AddUshort((ushort)result);
+            // byteWriter.AddInt(client.Id);
+            // byteWriter.AddString(authenticateResult.Message);
+            // SeverAuthenticated?.Invoke(client);
+            //
+            // switch (result)
+            // {
+            //     case EConnectionResult.Success:
+            //         client.IsApproved = true;
+            //         break;
+            //     case EConnectionResult.Reject:
+            //     case EConnectionResult.TimeOut:
+            //         SeverClientDisconnected?.Invoke(client.Id);
+            //         _server.DisconnectClient(client.Id, authenticateResult.Message);
+            //         break;
+            // }
+            // _server.Send(byteWriter.Data, client, ESendMode.Reliable);
         }
 
         private void OnClientAuthenticated(EConnectionResult authenticateResult, string serverMessage)
@@ -220,9 +200,9 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Impl
 
         private void FixedUpdate()
         {
-            _client?.Update();
+            //_client?.Update();
 
-            _server?.Update();
+            //_server?.Update();
         }
     }
 }

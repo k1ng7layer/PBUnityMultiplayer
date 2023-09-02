@@ -52,14 +52,17 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         public event Action<NetworkClient> SeverAuthenticated;
         public event Action<int> SeverClientDisconnected;
         public event Action<int> SeverClientConnected;
-        
-        public void StartServer()
+
+        private void Awake()
         {
             _networkObjectIdGenerator = new NetworkObjectIdGenerator();
             _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
             _messageHandlersService = new NetworkMessageHandlersService();
             _networkSpawnHandlerService = new NetworkSpawnHandlerService();
-                    
+        }
+
+        public void StartServer()
+        {
             _server = new GameServer(
                 networkConfiguration);
             

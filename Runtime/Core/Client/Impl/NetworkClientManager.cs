@@ -36,15 +36,18 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         private GameClient _client;
 
         public event Action ClientConnectedToServer;
-        
+
+        private void Awake()
+        {
+            _messageHandlersService = new NetworkMessageHandlersService();
+            _networkSpawnHandlerService = new NetworkSpawnHandlerService();
+            _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
+        }
+
         public UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
         {
             if (_client == null)
             {
-                _messageHandlersService = new NetworkMessageHandlersService();
-                _networkSpawnHandlerService = new NetworkSpawnHandlerService();
-                _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
-                    
                 _client = new GameClient(
                     networkConfiguration);
             }

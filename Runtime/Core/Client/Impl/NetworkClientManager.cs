@@ -8,10 +8,13 @@ using PBUnityMultiplayer.Runtime.Configuration.Connection.Impl;
 using PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
-using PBUnityMultiplayer.Runtime.Core.Connection.Server;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
+using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService.Impl;
+using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -23,8 +26,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
     {
         [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
         [SerializeField] private NetworkPrefabsBase networkPrefabsBase;
-        [SerializeField] private bool useAuthentication;
 
+        private INetworkSpawnHandlerService _networkSpawnHandlerService;
+        private INetworkSpawnService _networkSpawnService;
+        private IMessageHandlersService _messageHandlersService;
+        
         private EventHandler<AuthenticateResult> _clientConnectionEventHandler;
         
         private GameClient _client;
@@ -35,14 +41,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         {
             if (_client == null)
             {
-                var spawnHandlerService = new NetworkSpawnHandlerService();
-                var spawnService = new NetworkSpawnService(networkPrefabsBase);
+                _messageHandlersService = new NetworkMessageHandlersService();
+                _networkSpawnHandlerService = new NetworkSpawnHandlerService();
+                _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
                     
                 _client = new GameClient(
-                    networkConfiguration, 
-                    networkPrefabsBase, 
-                    spawnHandlerService,
-                    spawnService);
+                    networkConfiguration);
             }
             
             _client.Start();
@@ -84,12 +88,43 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
 
         public void Spawn(int prefabId, Vector3 position, Quaternion rotation)
         {
-            _client.Spawn(prefabId, position, rotation);
+            var prefab = networkPrefabsBase.Get(prefabId);
+            
+            var byteWriter = new ByteWriter();
+            
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
+            byteWriter.AddInt(_client.LocalClient.Id);
+            byteWriter.AddInt(prefabId);
+            byteWriter.AddVector3(position);
+            byteWriter.AddQuaternion(rotation);
+          
+            _client.Send(byteWriter.Data, ESendMode.Reliable);
         }
 
         public void Spawn<T>(int prefabId, Vector3 position, Quaternion rotation, T message)
         {
-            _client.Spawn(prefabId, position, rotation, message);
+            var prefab = networkPrefabsBase.Get(prefabId);
+            var hasHandler = _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
+
+            if (!hasHandler)
+                throw new Exception($"[{nameof(GameClient)}] can't process unregister handler");
+            
+            var messageBytes = BinarySerializationHelper.Serialize(message);
+            
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
+            byteWriter.AddInt(_client.LocalClient.Id);
+            byteWriter.AddInt(prefabId);
+            byteWriter.AddVector3(position);
+            byteWriter.AddQuaternion(rotation);
+            byteWriter.AddString(handlerId);
+            byteWriter.AddInt(messageBytes.Length);
+            byteWriter.AddBytes(messageBytes);
+            
+            Debug.Log($"Spawn count = {byteWriter.Data.Length}");
+            
+            _client.Send(byteWriter.Data, ESendMode.Reliable);
         }
 
         private void OnLocalClientConnected()
@@ -99,12 +134,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         
         public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
         {
-            _client.RegisterMessageHandler(handler);
+            _messageHandlersService.RegisterHandler(handler);
         }
         
         public void RegisterSpawnHandler<T>(NetworkSpawnHandler<T> handler) where T: struct
         {
-            _client.RegisterSpawnHandler(handler);
+            _networkSpawnHandlerService.RegisterHandler(handler);
         }
         
         private void OnClientAuthenticated(EConnectionResult authenticateResult, string serverMessage)
@@ -115,6 +150,64 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             }
             
             _clientConnectionEventHandler?.Invoke(this, new AuthenticateResult(authenticateResult, serverMessage));
+        }
+        
+        private void HandleSpawnMessage(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            var clientId = byteReader.ReadInt32();
+            var prefabId = byteReader.ReadInt32();
+            var position = byteReader.ReadVector3();
+            var rotation = byteReader.ReadQuaternion();
+            var objectId = byteReader.ReadUshort();
+            
+            var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
+            var hasClient = _client.ConnectedPlayers.TryGetValue(clientId, out var client);
+
+            if(!hasClient)
+                return;
+            
+            var isLocalObject = _client.LocalClient.Id == objectId;
+            
+            networkObject.Spawn(objectId, isLocalObject);
+            
+            client.AddOwnership(networkObject);
+        }
+        
+        private void HandleSpawnHandlerMessage(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            
+            var clientId = byteReader.ReadInt32();
+            var prefabId = byteReader.ReadInt32();
+            var objectId = byteReader.ReadUshort();
+            var position = byteReader.ReadVector3();
+            var rotation = byteReader.ReadQuaternion();
+            var handlerId = byteReader.ReadString();
+            var payloadSize = byteReader.ReadInt32();
+            var messagePayload = byteReader.ReadBytes(payloadSize);
+            var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
+            
+            var hasClient = _client.ConnectedPlayers.TryGetValue(clientId, out var client);
+            
+            //TODO:
+            if(!hasClient)
+                return;
+
+            client.AddOwnership(networkObject);
+            networkObject.Spawn(objectId, clientId == _client.LocalClient.Id);
+            
+            _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
+        }
+        
+        private void HandleNetworkMessage(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            var networkMessageId = byteReader.ReadString();
+            var payloadLength = byteReader.ReadInt32();
+            var networkMessagePayload = byteReader.ReadBytes(payloadLength);
+
+            _messageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
         }
 
         private void FixedUpdate()

@@ -158,6 +158,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 
             if (useAuthentication)
             {
+                Debug.Log($"Authenticate start");
                 AuthenticationServiceBase.Authenticate(networkClient, payload);
             }
             else
@@ -177,7 +178,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddInt(client.Id);
             byteWriter.AddString(authenticateResult.Message);
             SeverAuthenticated?.Invoke(client);
-            
+            Debug.Log($"OnServerAuthenticated = {result}");
             switch (result)
             {
                 case EConnectionResult.Success:

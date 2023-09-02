@@ -56,6 +56,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
 
             _client.LocalClientConnected += OnLocalClientConnected;
             _client.LocalClientAuthenticated += OnClientAuthenticated;
+            _client.SpawnReceived += HandleSpawnMessage;
+            _client.SpawnHandlerReceived += HandleSpawnHandlerMessage;
             
             var pwdBytes = Encoding.UTF8.GetBytes(password);
             var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
@@ -80,8 +82,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         
         public void StopClient()
         {
+            _client.Stop();
             _client.LocalClientConnected -= OnLocalClientConnected;
             _client.LocalClientAuthenticated -= OnClientAuthenticated;
+            _client.SpawnReceived -= HandleSpawnMessage;
+            _client.SpawnHandlerReceived -= HandleSpawnHandlerMessage;
         }
 
         public void SendMessage<T>(T message, ESendMode sendMode)
@@ -179,16 +184,17 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         
         private void HandleSpawnHandlerMessage(byte[] payload)
         {
+            Debug.Log($"received spawn handler size = {payload.Length}");
             var byteReader = new ByteReader(payload, 2);
             
             var clientId = byteReader.ReadInt32();
             var prefabId = byteReader.ReadInt32();
-            var objectId = byteReader.ReadUshort();
             var position = byteReader.ReadVector3();
             var rotation = byteReader.ReadQuaternion();
             var handlerId = byteReader.ReadString();
             var payloadSize = byteReader.ReadInt32();
             var messagePayload = byteReader.ReadBytes(payloadSize);
+            var objectId = byteReader.ReadUshort();
             var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
             
             var hasClient = _client.ConnectedPlayers.TryGetValue(clientId, out var client);

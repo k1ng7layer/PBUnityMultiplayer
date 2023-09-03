@@ -112,13 +112,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
             byteWriter.AddInt(owner.Id);
             byteWriter.AddInt(prefabId);
-            byteWriter.AddUshort(objectId);
             byteWriter.AddVector3(position);
             byteWriter.AddQuaternion(rotation);
             byteWriter.AddString(handlerId);
             byteWriter.AddInt(messageBytes.Length);
             byteWriter.AddBytes(messageBytes);
-
+            byteWriter.AddUshort(objectId);
+            Debug.Log($"client Spawn, id = {objectId}");
             _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
         }
 
@@ -177,7 +177,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddUshort((ushort)result);
             byteWriter.AddInt(client.Id);
             byteWriter.AddString(authenticateResult.Message);
-            SeverAuthenticated?.Invoke(client);
+            
             Debug.Log($"OnServerAuthenticated = {result}");
             switch (result)
             {
@@ -191,11 +191,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
                     break;
             }
             _server.Send(byteWriter.Data, client, ESendMode.Reliable);
+            
+            SeverAuthenticated?.Invoke(client);
         }
         
         private void HandleSpawnHandler(byte[] payload)
         {
             var byteReader = new ByteReader(payload, 2);
+            
             var clientId = byteReader.ReadInt32();
             var prefabId = byteReader.ReadInt32();
             var position = byteReader.ReadVector3();
@@ -213,16 +216,26 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 
             var objectId = _networkObjectIdGenerator.Next();
             
-            client.AddOwnership(networkObject);
             networkObject.Spawn(objectId, false);
+            client.AddOwnership(networkObject);
             
             _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
 
             var byteWriter = new ByteWriter();
             
-            byteWriter.AddBytes(payload);
+            // byteWriter.AddBytes(byteReader.Data);
+            // byteWriter.AddUshort(objectId);
+            
+            byteWriter.AddUshort((ushort)(ENetworkMessageType.SpawnHandler));
+            byteWriter.AddInt(clientId);
+            byteWriter.AddInt(prefabId);
+            byteWriter.AddVector3(position);
+            byteWriter.AddQuaternion(rotation);
+            byteWriter.AddString(handlerId);
+            byteWriter.AddInt(payloadSize);
+            byteWriter.AddBytes(messagePayload);
             byteWriter.AddUshort(objectId);
-
+            Debug.Log($"server HandleSpawnHandlerMessage, id = {objectId}, data count = {byteWriter.Data.Length}");
             _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
         }
         

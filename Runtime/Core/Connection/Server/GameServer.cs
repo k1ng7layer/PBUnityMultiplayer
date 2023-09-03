@@ -230,7 +230,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.Spawn:
                     HandleSpawn(messagePayload);
                     break;
+                case ENetworkMessageType.ClientReady:
+                    HandleClientReady(messagePayload);
+                    break;
             }
+        }
+
+        private void HandleClientReady(byte[] messagePayload)
+        {
+            
         }
 
         private void HandleSpawn(byte[] payload)

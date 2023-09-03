@@ -6,18 +6,18 @@ namespace PBUnityMultiplayer.Runtime.Helpers
 {
     public class ByteReader
     {
-        private readonly byte[] _data;
+        public byte[] Data { get; private set; }
 
         private int _readPosition;
 
         public ByteReader(byte[] data)
         {
-            _data = data;
+            Data = data;
         }
         
         public ByteReader(byte[] data, int startOffset)
         {
-            _data = data;
+            Data = data;
             _readPosition = startOffset;
         }
 
@@ -28,7 +28,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             //             | (_data[_readPosition + 2] << 16) 
             //             | (_data[_readPosition + 3] << 24);
             
-            var intSpan = new Span<byte>(_data, _readPosition, sizeof(int));
+            var intSpan = new Span<byte>(Data, _readPosition, sizeof(int));
             var value = BitConverter.ToInt32(intSpan);
 
             _readPosition += 4;
@@ -40,7 +40,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
         {
             var size = ReadInt32();
             var stringBytes = size == 0 ? 
-                Array.Empty<byte>() : new Span<byte>(_data).Slice(_readPosition, size);
+                Array.Empty<byte>() : new Span<byte>(Data).Slice(_readPosition, size);
 
             var result = Encoding.UTF8.GetString(stringBytes);
 
@@ -70,7 +70,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
 
         public float ReadFloat()
         {
-            var intSpan = new Span<byte>(_data, _readPosition, sizeof(float));
+            var intSpan = new Span<byte>(Data, _readPosition, sizeof(float));
             var value = BitConverter.ToSingle(intSpan);
 
             _readPosition += 4;
@@ -80,16 +80,17 @@ namespace PBUnityMultiplayer.Runtime.Helpers
 
         public byte[] ReadBytes(int count)
         {
-            if (_readPosition + count > _data.Length)
+            if (_readPosition + count > Data.Length)
                 throw new IndexOutOfRangeException();
             
             var bytes = new byte[count];
 
             for (int i = 0; i < count; i++)
             {
-                bytes[i] = _data[_readPosition + i];
+                bytes[i] = Data[_readPosition + i];
             }
 
+            _readPosition += count;
             return bytes;
         }
         
@@ -97,7 +98,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
         {
             stringLength = ReadInt32();
             var stringBytes =  stringLength == 0 ? 
-                Array.Empty<byte>() : new Span<byte>(_data).Slice(_readPosition, stringLength);
+                Array.Empty<byte>() : new Span<byte>(Data).Slice(_readPosition, stringLength);
 
             var result = Encoding.UTF8.GetString(stringBytes);
 
@@ -113,7 +114,7 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             //             | (_data[_readPosition + 2] << 16) 
             //             | (_data[_readPosition + 3] << 24);
             
-            var intSpan = new Span<byte>(_data, _readPosition, sizeof(int));
+            var intSpan = new Span<byte>(Data, _readPosition, sizeof(ushort));
             var value = BitConverter.ToUInt16(intSpan);
 
             _readPosition += 2;

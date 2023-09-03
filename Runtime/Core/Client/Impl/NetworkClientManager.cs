@@ -184,7 +184,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         
         private void HandleSpawnHandlerMessage(byte[] payload)
         {
-            Debug.Log($"received spawn handler size = {payload.Length}");
+            Debug.Log($"[{nameof(NetworkClientManager)}]received spawn handler size = {payload.Length}");
             var byteReader = new ByteReader(payload, 2);
             
             var clientId = byteReader.ReadInt32();
@@ -200,11 +200,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             var hasClient = _client.ConnectedPlayers.TryGetValue(clientId, out var client);
             
             //TODO:
+            //TODO:
             if(!hasClient)
                 return;
 
-            client.AddOwnership(networkObject);
+            Debug.Log($"client HandleSpawnHandlerMessage, id = {objectId}");
             networkObject.Spawn(objectId, clientId == _client.LocalClient.Id);
+            client.AddOwnership(networkObject);
             
             _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
         }

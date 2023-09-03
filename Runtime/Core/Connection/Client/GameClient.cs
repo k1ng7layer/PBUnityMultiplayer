@@ -168,9 +168,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 
                         if (canDequeue)
                         {
-                            Debug.Log("BeginSent");
+                            //Debug.Log("BeginSent");
                             await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
-                            Debug.Log("Sent");
+                            //Debug.Log("Sent");
                         }
                     }
                     catch (Exception e)
@@ -234,7 +234,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             var result = (EConnectionResult)byteReader.ReadUshort();
             var clientId = byteReader.ReadInt32();
             var reason = byteReader.ReadString();
-            LocalClient = new NetworkClient(clientId, _localEndPoint);
+            
+            Debug.Log($"client HandleConnectionAuthentication");
+
+            if (result == EConnectionResult.Success)
+            {
+                LocalClient = new NetworkClient(clientId, _localEndPoint);
+
+                var byteWriter = new ByteWriter();
+                
+                byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
+                byteWriter.AddInt(clientId);
+            }
+                
+            
             LocalClientAuthenticated?.Invoke(result, reason);
         }
 

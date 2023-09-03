@@ -6,6 +6,7 @@
         ClientDisconnected,
         ClientConnected,
         ClientReconnected,
+        ClientReady,
         Disconnect,
         Custom,
         AuthenticationResult,

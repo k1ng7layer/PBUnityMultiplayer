@@ -50,8 +50,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
-        public event Action<int> SeverClientDisconnected;
+        public event Action<int, string> SeverClientDisconnected;
         public event Action<int> SeverClientConnected;
+        public event Action<int> ClientLostConnection;
 
         private void Awake()
         {
@@ -63,13 +64,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 
         public void StartServer()
         {
-            _server = new GameServer(
-                networkConfiguration);
+            _server = new GameServer(networkConfiguration);
             
             _server.ClientConnected += ServerHandleNewConnection;
             _server.SpawnHandlerReceived += HandleSpawnHandler;
             _server.SpawnReceived += HandleSpawn;
             _server.SpawnReceived += HandleNetworkMessage;
+            _server.ClientLostConnection += OnClientLostConnection;
+            _server.ClientDisconnected += OnClientDisconnected;
             
             AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
             
@@ -110,12 +112,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _networkSpawnHandlerService.CallHandler(handlerId, messageBytes, spawnedObject);
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
-            byteWriter.AddInt(owner.Id);
-            byteWriter.AddInt(prefabId);
+            byteWriter.AddInt32(owner.Id);
+            byteWriter.AddInt32(prefabId);
             byteWriter.AddVector3(position);
             byteWriter.AddQuaternion(rotation);
             byteWriter.AddString(handlerId);
-            byteWriter.AddInt(messageBytes.Length);
+            byteWriter.AddInt32(messageBytes.Length);
             byteWriter.AddBytes(messageBytes);
             byteWriter.AddUshort(objectId);
             Debug.Log($"client Spawn, id = {objectId}");
@@ -135,8 +137,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             var byteWriter = new ByteWriter();
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
-            byteWriter.AddInt(owner.Id);
-            byteWriter.AddInt(prefabId);
+            byteWriter.AddInt32(owner.Id);
+            byteWriter.AddInt32(prefabId);
             byteWriter.AddUshort(id);
 
             _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
@@ -175,9 +177,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 
             byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
             byteWriter.AddUshort((ushort)result);
-            byteWriter.AddInt(client.Id);
+            byteWriter.AddInt32(client.Id);
             byteWriter.AddString(authenticateResult.Message);
-            
+            client.LastMessageReceived = DateTime.Now;
             Debug.Log($"OnServerAuthenticated = {result}");
             switch (result)
             {
@@ -186,7 +188,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
                     break;
                 case EConnectionResult.Reject:
                 case EConnectionResult.TimeOut:
-                    SeverClientDisconnected?.Invoke(client.Id);
+                    SeverClientDisconnected?.Invoke(client.Id, "Timeout");
                     _server.DisconnectClient(client.Id, authenticateResult.Message);
                     break;
             }
@@ -214,6 +216,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             if(!hasClient)
                 return;
 
+            client.LastMessageReceived = DateTime.Now;
+            
             var objectId = _networkObjectIdGenerator.Next();
             
             networkObject.Spawn(objectId, false);
@@ -227,12 +231,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             // byteWriter.AddUshort(objectId);
             
             byteWriter.AddUshort((ushort)(ENetworkMessageType.SpawnHandler));
-            byteWriter.AddInt(clientId);
-            byteWriter.AddInt(prefabId);
+            byteWriter.AddInt32(clientId);
+            byteWriter.AddInt32(prefabId);
             byteWriter.AddVector3(position);
             byteWriter.AddQuaternion(rotation);
             byteWriter.AddString(handlerId);
-            byteWriter.AddInt(payloadSize);
+            byteWriter.AddInt32(payloadSize);
             byteWriter.AddBytes(messagePayload);
             byteWriter.AddUshort(objectId);
             Debug.Log($"server HandleSpawnHandlerMessage, id = {objectId}, data count = {byteWriter.Data.Length}");
@@ -255,6 +259,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             if(!client.IsApproved)
                 return;
             
+            client.LastMessageReceived = DateTime.Now;
             var objectId = _networkObjectIdGenerator.Next();
             
             networkObject.Spawn(objectId, false);
@@ -275,6 +280,16 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);
 
             _messageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
+        }
+
+        private void OnClientLostConnection(int id)
+        {
+            ClientLostConnection?.Invoke(id);
+        }
+
+        private void OnClientDisconnected(int id, string reason)
+        {
+            SeverClientDisconnected?.Invoke(id, reason);
         }
         
         private void FixedUpdate()

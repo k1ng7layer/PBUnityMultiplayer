@@ -20,6 +20,8 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
         public IPEndPoint RemoteEndpoint { get; }
         public bool IsApproved { get; set; }
         public bool IsOnline { get; set; }
+        public DateTime LastMessageReceived { get; set; }
+        public DateTime LastMessageSent { get; set; }
 
         internal void AddOwnership(NetworkObject networkObject)
         {

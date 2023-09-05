@@ -23,12 +23,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private readonly IIdGenerator<ushort> _networkObjectIdGenerator;
         private readonly INetworkSpawnedObjectsRepository _networkSpawnedObjectsRepository;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
+        private readonly Dictionary<int, NetworkClient> _clientsToDisconnect = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
         
         private UdpTransport _udpTransport;
         private bool _isRunning;
         private int _nextId;
+        private DateTime _lastAliveMessageSent;
        
 
         internal GameServer(
@@ -40,11 +42,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
 
         internal event Action<NetworkClient, byte[]> ClientConnected;
-        internal event Action<int> ClientDisconnected;
+        internal event Action<int, string> ClientDisconnected;
         internal event Action<int> ClientReconnected;
         internal event Action<byte[]> SpawnHandlerReceived; 
         internal event Action<byte[]> SpawnReceived; 
         internal event Action<byte[]> NetworkMessageReceived; 
+        internal event Action<int> ClientLostConnection;
         
         public void SendMessage<T>(T message, int networkClientId, ESendMode sendMode)
         {
@@ -60,7 +63,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
             byteWriter.AddString(handlerId);
-            byteWriter.AddInt(payload.Length);
+            byteWriter.AddInt32(payload.Length);
             byteWriter.AddBytes(payload);
             
             Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
@@ -96,6 +99,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             ProcessReceiveQueue();
             ProcessSendQueue();
+            CheckTimeout();
             //Receive();
         }
 
@@ -139,7 +143,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             if (_networkClientsTable.TryGetValue(clientId, out var client))
             {
                 var byteWriter = new ByteWriter();
-                byteWriter.AddInt((ushort)ENetworkMessageType.Disconnect);
+                byteWriter.AddInt32((ushort)ENetworkMessageType.Disconnect);
                 byteWriter.AddString(reason);
 
                 Send(byteWriter.Data, client.RemoteEndpoint, ESendMode.Reliable);
@@ -162,12 +166,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 {
                     var result = await _udpTransport.ReceiveAsync();
                     var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
-                    Debug.Log("Received");
-                    _receiveMessagesQueue.Enqueue(incomeMessage);
+                   // Debug.Log("Received");
+
+                   _receiveMessagesQueue.Enqueue(incomeMessage);
                 }
                 catch (Exception e)
                 {
-                    Debug.Log(e);
+                    //Debug.Log(e);
                 }
             }
         }
@@ -209,7 +214,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
             var messagePayload = incomePendingMessage.Payload;
-            Debug.Log($"HandleIncomeMessage = {messageType}");
+            
             switch (messageType)
             {
                 case ENetworkMessageType.ConnectionRequest:
@@ -233,9 +238,27 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.ClientReady:
                     HandleClientReady(messagePayload);
                     break;
+                case ENetworkMessageType.ClientAliveCheck:
+                    HandleAliveCheck(messagePayload);
+                    break;
             }
         }
 
+        private void HandleAliveCheck(byte[] messagePayload)
+        {
+            var byteReader = new ByteReader(messagePayload, 2);
+            
+            var clientId = byteReader.ReadInt32();
+
+            var hasClient = ConnectedPlayers.TryGetValue(clientId, out var player);
+            
+            if(!hasClient)
+                return;
+            
+            //Debug.Log($"server HandleAliveCheck for client = {player.Id}");
+            player.LastMessageReceived = DateTime.Now;
+        }
+        
         private void HandleClientReady(byte[] messagePayload)
         {
             
@@ -275,9 +298,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     var byteWriter = new ByteWriter();
                     
                     byteWriter.AddUshort((ushort)ENetworkMessageType.ClientConnected);
-                    byteWriter.AddInt(clientId);
+                    byteWriter.AddInt32(clientId);
                     byteWriter.AddString(remoteEndPoint.Address.ToString());
-                    byteWriter.AddInt(remoteEndPoint.Port);
+                    byteWriter.AddInt32(remoteEndPoint.Port);
 
                     Send(byteWriter.Data, networkClient, ESendMode.Reliable);
                     
@@ -288,7 +311,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     var connectInfoPayload = new byte[msgLength];
                     
                     Buffer.BlockCopy(messagePayload, 2, connectInfoPayload, 0, msgLength);
-                    
+                    networkClient.IsOnline = true;
                     ClientConnected?.Invoke(networkClient, connectInfoPayload);
                 }
             }
@@ -320,9 +343,63 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             {
                 client.IsOnline = false;
 
-                ClientDisconnected?.Invoke(clientId);
+                ClientDisconnected?.Invoke(clientId, "client leave server");
             }
         }
-        
+
+        private void CheckTimeout()
+        {
+            foreach (var networkClient in ConnectedPlayers.Values)
+            {
+                var diff = DateTime.Now - networkClient.LastMessageReceived;
+                
+                if (diff.TotalMilliseconds >= _networkConfiguration.ClientCheckAliveTimeOut && networkClient.IsOnline)
+                {
+                    networkClient.IsOnline = false;
+                    
+                    var byteWriter = new ByteWriter();
+                    byteWriter.AddUshort((ushort)ENetworkMessageType.ClientLostConnection);
+                    byteWriter.AddInt32(networkClient.Id);
+                    
+                    ClientLostConnection?.Invoke(networkClient.Id);
+                    
+                    SendToAll(byteWriter.Data, ESendMode.Reliable);
+                }
+                
+                if (diff.TotalMilliseconds >= _networkConfiguration.ServerClientDisconnectTime && !networkClient.IsOnline)
+                {
+                    _clientsToDisconnect.Add(networkClient.Id, networkClient);
+                }
+            }
+
+            foreach (var client in _clientsToDisconnect.Values)
+            {
+                _networkClientsTable.Remove(client.Id);
+            }
+
+            foreach (var client in _clientsToDisconnect.Values)
+            {
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+                byteWriter.AddInt32(client.Id);
+                byteWriter.AddString("disconnected due timeout");
+                
+                ClientDisconnected?.Invoke(client.Id, "disconnected due timeout");
+                
+                SendToAll(byteWriter.Data, ESendMode.Reliable);
+            }
+            
+            if(_clientsToDisconnect.Count > 0)
+                _clientsToDisconnect.Clear();
+
+            if ((DateTime.Now - _lastAliveMessageSent).TotalMilliseconds >=
+                _networkConfiguration.ServerCheckAliveTimeSent)
+            {
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)ENetworkMessageType.ServerAliveCheck);
+                
+                SendToAll(byteWriter.Data, ESendMode.Reliable);
+            }
+        }
     }
 }

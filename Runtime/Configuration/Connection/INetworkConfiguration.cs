@@ -7,5 +7,10 @@
         string LocalIp { get;}
         int LocalPort { get;}
         int ConnectionTimeOut { get;}
+        int ClientCheckAliveTimeOut { get;}
+        int ServerClientDisconnectTime { get; }
+        int ClientCheckAliveTime { get; }
+        int ServerCheckAliveTimeOut { get; }
+        int ServerCheckAliveTimeSent { get; }
     }
 }

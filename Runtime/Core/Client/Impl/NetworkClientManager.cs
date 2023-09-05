@@ -36,6 +36,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         private GameClient _client;
 
         public event Action ClientConnectedToServer;
+        public event Action ServerLostConnection;
 
         private void Awake()
         {
@@ -48,8 +49,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         {
             if (_client == null)
             {
-                _client = new GameClient(
-                    networkConfiguration);
+                _client = new GameClient(networkConfiguration);
             }
             
             _client.Start();
@@ -58,6 +58,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _client.LocalClientAuthenticated += OnClientAuthenticated;
             _client.SpawnReceived += HandleSpawnMessage;
             _client.SpawnHandlerReceived += HandleSpawnHandlerMessage;
+            _client.NetworkMessageReceived += HandleNetworkMessage;
+            _client.ServerLostConnection += OnServerLostConnection;
             
             var pwdBytes = Encoding.UTF8.GetBytes(password);
             var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
@@ -87,6 +89,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _client.LocalClientAuthenticated -= OnClientAuthenticated;
             _client.SpawnReceived -= HandleSpawnMessage;
             _client.SpawnHandlerReceived -= HandleSpawnHandlerMessage;
+            _client.NetworkMessageReceived -= HandleNetworkMessage;
+            _client.ServerLostConnection -= OnServerLostConnection;
         }
 
         public void SendMessage<T>(T message, ESendMode sendMode)
@@ -101,8 +105,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             var byteWriter = new ByteWriter();
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
-            byteWriter.AddInt(_client.LocalClient.Id);
-            byteWriter.AddInt(prefabId);
+            byteWriter.AddInt32(_client.LocalClient.Id);
+            byteWriter.AddInt32(prefabId);
             byteWriter.AddVector3(position);
             byteWriter.AddQuaternion(rotation);
           
@@ -122,12 +126,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             var byteWriter = new ByteWriter();
               
             byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
-            byteWriter.AddInt(_client.LocalClient.Id);
-            byteWriter.AddInt(prefabId);
+            byteWriter.AddInt32(_client.LocalClient.Id);
+            byteWriter.AddInt32(prefabId);
             byteWriter.AddVector3(position);
             byteWriter.AddQuaternion(rotation);
             byteWriter.AddString(handlerId);
-            byteWriter.AddInt(messageBytes.Length);
+            byteWriter.AddInt32(messageBytes.Length);
             byteWriter.AddBytes(messageBytes);
             
             Debug.Log($"Spawn count = {byteWriter.Data.Length}");
@@ -219,6 +223,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);
 
             _messageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
+        }
+
+        private void OnServerLostConnection()
+        {
+            ServerLostConnection?.Invoke();
         }
 
         private void FixedUpdate()

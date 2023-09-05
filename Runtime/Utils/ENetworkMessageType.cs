@@ -8,11 +8,14 @@
         ClientReconnected,
         ClientReady,
         Disconnect,
+        ClientLostConnection,
         Custom,
         AuthenticationResult,
         NetworkMessage,
         Spawn,
         SpawnHandler,
+        ClientAliveCheck,
+        ServerAliveCheck,
         None
     }
 }

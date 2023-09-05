@@ -8,7 +8,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
     {
         event Action ClientConnectedToServer;
         event Action<NetworkClient> SeverAuthenticated;
-        event Action<int> SeverClientDisconnected;
+        event Action<int, string> SeverClientDisconnected;
         event Action<int> SeverClientConnected;
         
         void StartServer();

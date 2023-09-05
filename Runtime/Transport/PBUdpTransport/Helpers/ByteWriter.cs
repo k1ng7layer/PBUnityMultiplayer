@@ -15,7 +15,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
             Data = new byte[length];
         }
         
-         public void AddInt(int value)
+         public void AddInt32(int value)
          { 
             CheckSpaceAndCopy(4); 
             
@@ -48,7 +48,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
             var bytes = Encoding.UTF8.GetBytes(value);
 
             
-            AddInt(bytes.Length);
+            AddInt32(bytes.Length);
             CheckSpaceAndCopy(bytes.Length);
             
             for (int i = 0; i < bytes.Length; i++)

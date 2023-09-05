@@ -112,7 +112,7 @@ namespace PBUdpTransport.Helpers
             byteWriter.AddUshort((ushort)packetFlags);
             byteWriter.AddUshort(transmissionId);
             byteWriter.AddUshort(packetId);
-            byteWriter.AddInt(messageLength);
+            byteWriter.AddInt32(messageLength);
             byteWriter.AddUshort(windowSize);
             byteWriter.AddUshort((ushort)sendMode);
 

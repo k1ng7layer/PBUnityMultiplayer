@@ -38,6 +38,7 @@ namespace PBUdpTransport
 
         private ushort _transmissionsCount;
         private bool _running;
+        private readonly object _taskLock = new();
 
         public UdpTransport(
             EndPoint localEndPoint,
@@ -111,7 +112,7 @@ namespace PBUdpTransport
             callback = (_, args) =>
             {
                 transmission.Completed -= callback;
-                taskSource.SetResult(args.IsSuccessfullyCompleted);
+                taskSource.TrySetResult(args.IsSuccessfullyCompleted);
             };
 
             transmission.Completed += callback;
@@ -164,16 +165,15 @@ namespace PBUdpTransport
                 throw new Exception($"[{nameof(UdpTransport)}] you must first call the start method");
             
             var taskSource = new TaskCompletionSource<TransportMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-
             _receiveEventHandler = (_, args) =>
             {
                 if (args.IsSuccessfullyCompleted)
                 {
-                    taskSource.SetResult(args.TransportMessage);
+                    taskSource.TrySetResult(args.TransportMessage);
                 }
                 else
                 {
-                    taskSource.SetCanceled();
+                    taskSource.TrySetCanceled();
                 }
             };
 
@@ -262,6 +262,7 @@ namespace PBUdpTransport
         
        private async Task ProcessTransmissionsSend()
         {
+            //TODO: add timeout for receive transmissions
             while (_running)
             {
                 var sendTransmissionsTables = _udpSenderTransmissionsTable;
@@ -289,12 +290,17 @@ namespace PBUdpTransport
                             {
                                 await UnReliableSend(transmission);
                                 sendTransmissionsTable.TryRemove(transmission.Id, out _);
-                                transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
+                                lock (_taskLock)
+                                {
+                                    transmission.Completed?.Invoke(this, new CompletedTransmissionArgs(null, true));
+                                }
+                                
                             }
                         }
                         catch (Exception e)
                         {
-                            Debug.LogError(e);
+                            sendTransmissionsTable.TryRemove(transmission.Id, out _);
+                            //Debug.LogError(e);
                         }
                     }
                 }
@@ -564,6 +570,9 @@ namespace PBUdpTransport
 
         private void PrepareMessage(UdpTransmission transmission)
         {
+            if(transmission.IsCompleted)
+                return;
+            
             var hasTransmissions =  _udpReceiverTransmissionsTable.TryGetValue(transmission.RemoteEndPoint, out var transmissions);
 
             if (hasTransmissions)
@@ -590,7 +599,11 @@ namespace PBUdpTransport
             
             var message = new TransportMessage(messagePayload, transmission.RemoteEndPoint);
 
-            _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(message, true));
+            lock (_taskLock)
+            {
+                _receiveEventHandler?.Invoke(this, new CompletedTransmissionArgs(message, true));
+            }
+           
             //_transportMessagesQueue.Enqueue(message);
         }
         

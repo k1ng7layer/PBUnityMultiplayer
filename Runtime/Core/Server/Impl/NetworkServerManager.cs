@@ -13,6 +13,7 @@ using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService.Impl;
 using PBUnityMultiplayer.Runtime.Helpers;
+using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator;
@@ -27,6 +28,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
         [SerializeField] private NetworkPrefabsBase networkPrefabsBase;
         [SerializeField] private bool useAuthentication;
+        [SerializeField] private TransportBase transportBase;
         
         private INetworkSpawnService _networkSpawnService;
         private IIdGenerator<ushort> _networkObjectIdGenerator;
@@ -64,7 +66,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 
         public void StartServer()
         {
-            _server = new GameServer(networkConfiguration);
+            _server = new GameServer(networkConfiguration, transportBase);
             
             _server.ClientConnected += ServerHandleNewConnection;
             _server.SpawnHandlerReceived += HandleSpawnHandler;

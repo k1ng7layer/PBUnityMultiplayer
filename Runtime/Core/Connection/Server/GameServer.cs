@@ -10,6 +10,7 @@ using PBUnityMultiplayer.Runtime.Configuration.Connection;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnedRepository;
 using PBUnityMultiplayer.Runtime.Helpers;
+using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator;
@@ -20,6 +21,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
     public class GameServer
     {
         private readonly INetworkConfiguration _networkConfiguration;
+        private readonly TransportBase _transportBase;
         private readonly IIdGenerator<ushort> _networkObjectIdGenerator;
         private readonly INetworkSpawnedObjectsRepository _networkSpawnedObjectsRepository;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
@@ -27,16 +29,17 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
         
-        private UdpTransport _udpTransport;
         private bool _isRunning;
         private int _nextId;
         private DateTime _lastAliveMessageSent;
        
 
         internal GameServer(
-            INetworkConfiguration networkConfiguration)
+            INetworkConfiguration networkConfiguration,
+            TransportBase transportBase)
         {
             _networkConfiguration = networkConfiguration;
+            _transportBase = transportBase;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
@@ -81,9 +84,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             
             var localEndPoint = new IPEndPoint(ip, _networkConfiguration.ServerPort);
 
-            _udpTransport = new UdpTransport(localEndPoint);
+            //_udpTransport = new UdpTransport(localEndPoint);
             
-            _udpTransport.Start();
+            _transportBase.StartTransport(localEndPoint);
 
             _isRunning = true;
             
@@ -155,7 +158,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         internal void Stop()
         {
             _isRunning = false;
-            _udpTransport.Stop();
+            _transportBase.Stop();
         }
         
         private async Task Receive()
@@ -164,7 +167,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             {
                 try
                 {
-                    var result = await _udpTransport.ReceiveAsync();
+                    var result = await _transportBase.ReceiveAsync();
                     var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
                    // Debug.Log("Received");
 
@@ -200,7 +203,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 
                     if (canDequeue)
                     {
-                        await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
+                        await _transportBase.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
                     }
                 }
                 catch (Exception e)

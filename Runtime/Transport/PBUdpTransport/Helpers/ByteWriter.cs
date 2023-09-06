@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers
 {
-    internal class ByteWriter
+    public class ByteWriter
     {
         public int WritePos { get; internal set; }
         

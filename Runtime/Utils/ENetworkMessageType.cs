@@ -1,6 +1,6 @@
 ﻿namespace PBUnityMultiplayer.Runtime.Utils
 {
-    internal enum ENetworkMessageType
+    public enum ENetworkMessageType
     {
         ConnectionRequest,
         ClientDisconnected,

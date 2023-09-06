@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection.Impl;
 using PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl;
@@ -49,7 +50,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             }
             set => _serverAuthentication = value;
         }
-        
+
+        public IReadOnlyDictionary<int, NetworkClient> ConnectedClients => _server.ConnectedPlayers;
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
         public event Action<int, string> SeverClientDisconnected;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using UnityEngine;
 
@@ -6,6 +7,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
 {
     public interface INetworkServerManager
     {
+        public IReadOnlyDictionary<int, NetworkClient> ConnectedClients { get; }
         event Action ClientConnectedToServer;
         event Action<NetworkClient> SeverAuthenticated;
         event Action<int, string> SeverClientDisconnected;

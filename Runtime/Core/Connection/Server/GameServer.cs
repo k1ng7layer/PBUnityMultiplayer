@@ -286,6 +286,19 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             var messageType = MessageHelper.GetMessageType(messagePayload);
 
+            if (ConnectedPlayers.Count == _networkConfiguration.MaxClients)
+            {
+                var byteWriter = new ByteWriter();
+                
+                byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
+                byteWriter.AddUshort((ushort)EConnectionResult.Reject);
+                byteWriter.AddString("Server is full");
+                
+                Send(byteWriter.Data, remoteEndPoint, ESendMode.Reliable);
+                
+                return;
+            }
+            
             if (messageType == ENetworkMessageType.ConnectionRequest)
             {
                 var clientId = _nextId++;

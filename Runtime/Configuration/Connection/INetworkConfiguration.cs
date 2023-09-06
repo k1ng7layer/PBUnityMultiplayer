@@ -12,5 +12,6 @@
         int ClientCheckAliveTime { get; }
         int ServerCheckAliveTimeOut { get; }
         int ServerCheckAliveTimeSent { get; }
+        int MaxClients { get; }
     }
 }

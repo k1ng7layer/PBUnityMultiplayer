@@ -16,6 +16,7 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Connection.Impl
         [SerializeField] private int clientCheckAliveTime = 3000;
         [SerializeField] private int serverCheckAliveTime = 4000;
         [SerializeField] private int serverCheckAliveTimeSent = 2000;
+        [SerializeField] private int maxClients;
 
         public string ServerIp => serverIp;
 
@@ -36,5 +37,7 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Connection.Impl
         public int ServerCheckAliveTimeOut => serverCheckAliveTime;
 
         public int ServerCheckAliveTimeSent => serverCheckAliveTimeSent = 2000;
+
+        public int MaxClients => maxClients;
     }
 }

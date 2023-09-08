@@ -17,5 +17,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
         void StopServer();
         public void Spawn<T>(int prefabId, NetworkClient owner, Vector3 position, Quaternion rotation, T message) where T : struct;
         public void Spawn(int prefabId, NetworkClient owner, Vector3 position, Quaternion rotation);
+        void SendMessage<T>(T message, int networkClientId) where T : struct;
+        void SendMessage<T>(T message) where T : struct;
     }
 }

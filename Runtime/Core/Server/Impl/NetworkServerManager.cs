@@ -148,6 +148,19 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
         }
 
+        public void SendMessage<T>(T message, int networkClientId) where T : struct
+        {
+            _server.SendMessage<T>(message, networkClientId, ESendMode.Reliable);
+        }
+
+        public void SendMessage<T>(T message) where T : struct
+        {
+            foreach (var connectedClient in ConnectedClients)
+            {
+                _server.SendMessage<T>(message, connectedClient.Value.Id, ESendMode.Reliable);
+            }
+        }
+
         public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
         {
             _messageHandlersService.RegisterHandler(handler);

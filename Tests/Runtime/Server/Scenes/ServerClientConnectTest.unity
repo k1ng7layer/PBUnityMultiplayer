@@ -156,7 +156,7 @@ MonoBehaviour:
   networkConfiguration: {fileID: 11400000, guid: a20011bcdd8aa4254b967af35b38a5e3, type: 2}
   networkPrefabsBase: {fileID: 11400000, guid: a934df7ff82554fbf857ed0945e92b9a, type: 2}
   useAuthentication: 1
-  transportBase: {fileID: 1479004286}
+  transportBase: {fileID: 0}
 --- !u!4 &1479004285
 Transform:
   m_ObjectHideFlags: 0

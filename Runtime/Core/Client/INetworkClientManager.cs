@@ -10,6 +10,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
 {
     public interface INetworkClientManager
     {
+        void StartClient();
         UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);
         void StopClient();
         void SendMessage<T>(T message, ESendMode sendMode);

@@ -34,6 +34,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         private EventHandler<AuthenticateResult> _clientConnectionEventHandler;
         
         private GameClient _client;
+        private bool _isRunning;
 
         public event Action ClientConnectedToServer;
         public event Action ServerLostConnection;
@@ -45,15 +46,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
         }
 
+        public void StartClient()
+        {
+            if(_isRunning)
+                StopClient();
+            
+            _isRunning = true;
+            _client = new GameClient(networkConfiguration);
+            _client.Start();
+        }
+
         public UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
         {
-            if (_client == null)
-            {
-                _client = new GameClient(networkConfiguration);
-            }
-            
-            _client.Start();
-
+            if (!_isRunning)
+                throw new Exception($"[{nameof(NetworkClientManager)}] must call StartClient first");
+                    
             _client.LocalClientConnected += OnLocalClientConnected;
             _client.LocalClientAuthenticated += OnClientAuthenticated;
             _client.SpawnReceived += HandleSpawnMessage;

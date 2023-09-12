@@ -3,6 +3,7 @@ using System.Net;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
+using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
 using UnityEngine;
 
@@ -10,6 +11,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
 {
     public interface INetworkClientManager
     {
+        NetworkClient LocalClient { get; }
         void StartClient();
         UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);
         void StopClient();

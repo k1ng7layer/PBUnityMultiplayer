@@ -10,6 +10,7 @@ using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
+using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
@@ -45,6 +46,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _networkSpawnHandlerService = new NetworkSpawnHandlerService();
             _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
         }
+
+        public NetworkClient LocalClient => _client.LocalClient;
 
         public void StartClient()
         {

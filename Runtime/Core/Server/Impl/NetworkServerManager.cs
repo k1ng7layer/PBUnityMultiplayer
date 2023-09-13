@@ -73,7 +73,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.ClientConnected += ServerHandleNewConnection;
             _server.SpawnHandlerReceived += HandleSpawnHandler;
             _server.SpawnReceived += HandleSpawn;
-            _server.SpawnReceived += HandleNetworkMessage;
+            _server.NetworkMessageReceived += HandleNetworkMessage;
             _server.ClientLostConnection += OnClientLostConnection;
             _server.ClientDisconnected += OnClientDisconnected;
             

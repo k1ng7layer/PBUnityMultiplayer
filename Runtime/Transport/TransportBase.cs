@@ -8,10 +8,10 @@ namespace PBUnityMultiplayer.Runtime.Transport
 {
     public abstract class TransportBase : MonoBehaviour
     {
-        internal abstract void StartTransport(IPEndPoint localEndPoint);
-        internal abstract void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode);
-        internal abstract UniTask SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode);
-        internal abstract UniTask<TransportMessage> ReceiveAsync();
-        internal abstract void Stop();
+        protected internal abstract void StartTransport(IPEndPoint localEndPoint);
+        protected internal abstract void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode);
+        protected internal abstract UniTask SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode);
+        protected internal abstract UniTask<TransportMessage> ReceiveAsync();
+        protected internal abstract void Stop();
     }
 }

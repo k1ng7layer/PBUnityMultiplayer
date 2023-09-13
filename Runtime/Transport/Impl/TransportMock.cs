@@ -11,28 +11,28 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
     public class TransportMock : TransportBase
     {
         private TransportMessage _transportMessage;
-        internal override void StartTransport(IPEndPoint localEndPoint)
+        protected internal override void StartTransport(IPEndPoint localEndPoint)
         {
             
         }
 
-        internal override void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
+        protected internal override void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
         {
             throw new System.NotImplementedException();
         }
 
-        internal override UniTask SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
+        protected internal override UniTask SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
         {
             return UniTask.CompletedTask;
         }
 
-        internal override async UniTask<TransportMessage> ReceiveAsync()
+        protected internal override async UniTask<TransportMessage> ReceiveAsync()
         {
             await UniTask.Delay(1000);
             return await UniTask.FromResult(_transportMessage);
         }
 
-        internal override void Stop()
+        protected internal override void Stop()
         {
             throw new System.NotImplementedException();
         }

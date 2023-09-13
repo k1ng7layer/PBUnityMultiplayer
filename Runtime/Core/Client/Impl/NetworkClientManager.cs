@@ -16,6 +16,7 @@ using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService.Impl;
 using PBUnityMultiplayer.Runtime.Helpers;
+using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -27,6 +28,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
     {
         [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
         [SerializeField] private NetworkPrefabsBase networkPrefabsBase;
+        [SerializeField] private TransportBase transportBase;
 
         private INetworkSpawnHandlerService _networkSpawnHandlerService;
         private INetworkSpawnService _networkSpawnService;
@@ -55,7 +57,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
                 StopClient();
             
             _isRunning = true;
-            _client = new GameClient(networkConfiguration);
+            _client = new GameClient(networkConfiguration, transportBase);
             _client.Start();
         }
 

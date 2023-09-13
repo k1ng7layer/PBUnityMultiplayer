@@ -9,6 +9,7 @@ using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
+using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -18,18 +19,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
     public class GameClient : Peer
     {
         private readonly INetworkConfiguration _networkConfiguration;
+        private readonly TransportBase _transportBase;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
-        
-        private UdpTransport _udpTransport;
         private IPEndPoint _serverEndPoint;
         private IPEndPoint _localEndPoint;
         private bool _isRunning;
         
-        internal GameClient(INetworkConfiguration networkConfiguration)
+        internal GameClient(
+            INetworkConfiguration networkConfiguration, 
+            TransportBase transportBase)
         {
             _networkConfiguration = networkConfiguration;
+            _transportBase = transportBase;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
@@ -86,10 +89,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 throw new Exception($"[{nameof(GameClient)}] invalid server ip address, check config");
 
             _serverEndPoint = new IPEndPoint(serverIp, _networkConfiguration.ServerPort);
-            
-            _udpTransport = new UdpTransport(_localEndPoint);
-            
-            _udpTransport.Start();
+
+            _transportBase.StartTransport(_localEndPoint);
 
             _isRunning = true;
             
@@ -129,7 +130,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         internal void Stop()
         {
             _isRunning = false;
-            _udpTransport.Stop();
+            _transportBase.Stop();
             _networkClientsTable.Clear();
         }
         
@@ -139,7 +140,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             {
                 try
                 {
-                    var result = await _udpTransport.ReceiveAsync();
+                    var result = await _transportBase.ReceiveAsync();
 
                     _lastMessageReceivedFromServer = DateTime.Now;
                     
@@ -180,7 +181,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                         if (canDequeue)
                         {
                             //Debug.Log("BeginSent");
-                            await _udpTransport.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
+                            await _transportBase.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
                             //Debug.Log("Sent");
                         }
                     }

@@ -268,13 +268,19 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var clientId = byteReader.ReadInt32();
 
             var hasClient = ConnectedPlayers.TryGetValue(clientId, out var player);
-            
-            if(!hasClient)
-                return;
-            
+            var hasPendingClient = ConnectedPlayers.TryGetValue(clientId, out var pendingClient);
+
+            if (hasClient)
+            {
+                player.LastMessageReceived = DateTime.Now;
+            }
+
+            if (hasPendingClient)
+            {
+                pendingClient.LastMessageReceived = DateTime.Now;
+            }
+
             Debug.Log($"server HandleAliveCheck for client = {player.Id}");
-            //Debug.Log($"server HandleAliveCheck for client = {player.Id}");
-            player.LastMessageReceived = DateTime.Now;
         }
         
         private void HandleClientReady(byte[] messagePayload)

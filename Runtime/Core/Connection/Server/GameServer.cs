@@ -457,7 +457,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 
                 if (diff.TotalMilliseconds >= _networkConfiguration.ServerClientDisconnectTime && !networkClient.IsOnline)
                 {
-                    _clientsToDisconnect.Add(networkClient.Id, networkClient);
+                    _clientsToDisconnect.TryAdd(networkClient.Id, networkClient);
                 }
             }
 

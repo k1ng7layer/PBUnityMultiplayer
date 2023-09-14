@@ -268,13 +268,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         {
             var byteReader = new ByteReader(connPayload, 2);
             var result = (EConnectionResult)byteReader.ReadUshort();
+            var clientId = byteReader.ReadInt32();
             var reason = byteReader.ReadString();
-            
             Debug.Log($"client HandleConnectionAuthentication");
 
             if (result == EConnectionResult.Success)
             {
-                var clientId = byteReader.ReadInt32();
+                
                 LocalClient = new NetworkClient(clientId, _localEndPoint);
 
                 var byteWriter = new ByteWriter();
@@ -284,7 +284,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 
                 Send(byteWriter.Data, ESendMode.Reliable);
             }
-            
+           
             LocalClientAuthenticated?.Invoke(result, reason);
         }
 

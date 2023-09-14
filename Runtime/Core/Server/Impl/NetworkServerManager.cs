@@ -299,7 +299,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         
         private void HandleNetworkMessage(byte[] payload)
         {
-            var byteReader = new ByteReader(payload, 2);
+            var byteReader = new ByteReader(payload, 6);
             var networkMessageId = byteReader.ReadString();
             var payloadLength = byteReader.ReadInt32();
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);

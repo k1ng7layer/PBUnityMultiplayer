@@ -125,7 +125,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddBytes(messageBytes);
             byteWriter.AddUshort(objectId);
             Debug.Log($"client Spawn, id = {objectId}");
-            _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
+            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
         }
 
         public void Spawn(int prefabId, 
@@ -145,7 +145,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddInt32(prefabId);
             byteWriter.AddUshort(id);
 
-            _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
+            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
         }
 
         public void SendMessage<T>(T message, int networkClientId) where T : struct
@@ -257,7 +257,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddBytes(messagePayload);
             byteWriter.AddUshort(objectId);
             Debug.Log($"server HandleSpawnHandlerMessage, id = {objectId}, data count = {byteWriter.Data.Length}");
-            _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
+            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
         }
         
         private void HandleSpawn(byte[] payload)
@@ -286,7 +286,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddBytes(payload);
             byteWriter.AddUshort(objectId);
             
-            _server.SendToAll(byteWriter.Data, ESendMode.Reliable);
+            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
         }
         
         private void HandleNetworkMessage(byte[] payload)

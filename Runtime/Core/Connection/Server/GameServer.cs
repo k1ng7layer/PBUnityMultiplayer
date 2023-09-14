@@ -128,12 +128,25 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _sendMessagesQueue.Enqueue(outcomeMessage);
         }
         
-        internal void SendToAll(
+        internal void SendToAllApprovedClients(
             byte[] data,
             ESendMode sendMode
         )
         {
             foreach (var client in _networkClientsTable.Values)
+            {
+                var outcomeMessage = new OutcomePendingMessage(data, client.RemoteEndpoint, sendMode);
+            
+                _sendMessagesQueue.Enqueue(outcomeMessage);
+            }
+        }
+        
+        internal void SendToAllPendingClients(
+            byte[] data,
+            ESendMode sendMode
+        )
+        {
+            foreach (var client in _pendingClientsTable.Values)
             {
                 var outcomeMessage = new OutcomePendingMessage(data, client.RemoteEndpoint, sendMode);
             
@@ -411,7 +424,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     Debug.Log($"client with id networkClient.Id lost connection");
                     ClientLostConnection?.Invoke(networkClient.Id);
                     
-                    SendToAll(byteWriter.Data, ESendMode.Reliable);
+                    SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
                 }
                 
                 if (diff.TotalMilliseconds >= _networkConfiguration.ServerClientDisconnectTime && !networkClient.IsOnline)
@@ -434,7 +447,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     Debug.Log($"client with id networkClient.Id lost connection");
                     ClientLostConnection?.Invoke(networkClient.Id);
                     
-                    SendToAll(byteWriter.Data, ESendMode.Reliable);
+                    SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
                 }
                 
                 if (diff.TotalMilliseconds >= _networkConfiguration.ServerClientDisconnectTime && !networkClient.IsOnline)
@@ -461,7 +474,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 
                 ClientDisconnected?.Invoke(client.Id, "disconnected due timeout");
                 
-                SendToAll(byteWriter.Data, ESendMode.Reliable);
+                SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
             }
             
             if(_clientsToDisconnect.Count > 0)
@@ -475,7 +488,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 var byteWriter = new ByteWriter();
                 byteWriter.AddUshort((ushort)ENetworkMessageType.ServerAliveCheck);
                 
-                SendToAll(byteWriter.Data, ESendMode.Reliable);
+                SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
+                SendToAllPendingClients(byteWriter.Data, ESendMode.Reliable);
             }
         }
     }

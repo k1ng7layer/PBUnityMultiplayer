@@ -292,8 +292,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             {
                 pendingClient.LastMessageReceived = DateTime.Now;
             }
-
-            Debug.Log($"server HandleAliveCheck for client = {player.Id}");
+            // Debug.Log($"server HandleAliveCheck for client = {player.Id}");
         }
         
         private void HandleClientReady(byte[] messagePayload)

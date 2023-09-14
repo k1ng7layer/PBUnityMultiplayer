@@ -54,6 +54,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         public IReadOnlyDictionary<int, NetworkClient> ConnectedClients => _server.ConnectedPlayers;
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
+        public event Action<NetworkClient> ClientReadyToWork;
         public event Action<int, string> SeverClientDisconnected;
         public event Action<int> SeverClientConnected;
         public event Action<int> ClientLostConnection;
@@ -76,6 +77,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.NetworkMessageReceived += HandleNetworkMessage;
             _server.ClientLostConnection += OnClientLostConnection;
             _server.ClientDisconnected += OnClientDisconnected;
+            _server.ClientReady += OnClientReady;
             
             AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
             
@@ -88,6 +90,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.SpawnHandlerReceived -= HandleSpawnHandler;
             _server.SpawnReceived -= HandleSpawn;
             _server.SpawnReceived -= HandleNetworkMessage;
+            _server.ClientReady -= OnClientReady;
             
             AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
             
@@ -169,6 +172,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         public void RegisterSpawnHandler<T>(NetworkSpawnHandler<T> handler) where T: struct
         {
             _networkSpawnHandlerService.RegisterHandler(handler);
+        }
+
+        private void OnClientReady(NetworkClient networkClient)
+        {
+            ClientReadyToWork?.Invoke(networkClient);
         }
         
         private void ServerHandleNewConnection(NetworkClient networkClient, byte[] payload)

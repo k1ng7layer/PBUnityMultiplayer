@@ -51,6 +51,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         internal event Action<byte[]> SpawnReceived; 
         internal event Action<byte[]> NetworkMessageReceived; 
         internal event Action<int> ClientLostConnection;
+        internal event Action<NetworkClient> ClientReady;
         
         public void SendMessage<T>(T message, int networkClientId, ESendMode sendMode)
         {
@@ -309,6 +310,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _pendingClientsTable.Remove(clientId);
             
             _networkClientsTable.Add(clientId, client);
+            
+            ClientReady?.Invoke(client);
         }
 
         private void HandleSpawn(byte[] payload)

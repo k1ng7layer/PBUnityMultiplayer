@@ -300,7 +300,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             var byteReader = new ByteReader(messagePayload, 2);
             var clientId = byteReader.ReadInt32();
-            var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
+            var hasClient = _pendingClientsTable.TryGetValue(clientId, out var client);
             
             if(!hasClient)
                 return;

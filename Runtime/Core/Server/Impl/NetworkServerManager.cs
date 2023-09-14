@@ -206,7 +206,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
                 case EConnectionResult.Reject:
                 case EConnectionResult.TimeOut:
                     SeverClientDisconnected?.Invoke(client.Id, "Timeout");
-                    _server.DisconnectClient(client.Id, authenticateResult.Message);
+                    _server.DisconnectPendingClient(client.Id, authenticateResult.Message);
                     break;
             }
             _server.Send(byteWriter.Data, client, ESendMode.Reliable);

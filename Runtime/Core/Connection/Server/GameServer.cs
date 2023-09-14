@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
@@ -411,6 +410,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             if ((DateTime.Now - _lastAliveMessageSent).TotalMilliseconds >=
                 _networkConfiguration.ServerCheckAliveTimeSent)
             {
+                _lastAliveMessageSent = DateTime.Now;
+                
                 var byteWriter = new ByteWriter();
                 byteWriter.AddUshort((ushort)ENetworkMessageType.ServerAliveCheck);
                 

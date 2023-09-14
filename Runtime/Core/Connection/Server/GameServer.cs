@@ -268,7 +268,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var clientId = byteReader.ReadInt32();
 
             var hasClient = ConnectedPlayers.TryGetValue(clientId, out var player);
-            var hasPendingClient = ConnectedPlayers.TryGetValue(clientId, out var pendingClient);
+            var hasPendingClient = _pendingClientsTable.TryGetValue(clientId, out var pendingClient);
 
             if (hasClient)
             {

@@ -381,6 +381,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             if ((DateTime.Now - _lastMessageReceivedFromServer).TotalMilliseconds >= serverCheckAliveTime)
             {
                 ServerLostConnection?.Invoke();
+                Debug.Log($"ServerLostConnection");
                 Stop();
             }
         }

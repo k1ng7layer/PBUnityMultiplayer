@@ -376,7 +376,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     var byteWriter = new ByteWriter();
                     byteWriter.AddUshort((ushort)ENetworkMessageType.ClientLostConnection);
                     byteWriter.AddInt32(networkClient.Id);
-                    
+                    Debug.Log($"client with id networkClient.Id lost connection");
                     ClientLostConnection?.Invoke(networkClient.Id);
                     
                     SendToAll(byteWriter.Data, ESendMode.Reliable);

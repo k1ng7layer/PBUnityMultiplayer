@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
 {
@@ -19,7 +18,7 @@ namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
 
         public void RegisterHandler<T>(Action<T> handler) where T : struct
         {
-            var id = typeof(T).FullName.ToString();
+            var id = typeof(T).FullName;
 
             if (!_registeredHandlersTable.ContainsKey(id))
             {

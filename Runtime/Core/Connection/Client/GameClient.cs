@@ -61,6 +61,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             var id = typeof(T).FullName;
             byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
+            byteWriter.AddInt32(LocalClient.Id);
             byteWriter.AddString(id);
             byteWriter.AddInt32(payload.Length);
             byteWriter.AddBytes(payload);

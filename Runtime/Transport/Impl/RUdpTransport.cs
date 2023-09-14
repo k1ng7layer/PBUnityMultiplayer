@@ -3,7 +3,6 @@ using Cysharp.Threading.Tasks;
 using PBUdpTransport;
 using PBUdpTransport.Models;
 using PBUdpTransport.Utils;
-using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Transport.Impl
 {
@@ -34,7 +33,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
             return data;
         }
 
-        protected internal override async void Stop()
+        protected internal override void Stop()
         {
             _udpTransport.Stop();
         }

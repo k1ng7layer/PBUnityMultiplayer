@@ -3,6 +3,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 namespace PBUnityMultiplayer.Runtime.Helpers
 {
+    //TODO: мб сделать с using
     public static class BinarySerializationHelper
     {
         public static byte[] Serialize<T>(T data)

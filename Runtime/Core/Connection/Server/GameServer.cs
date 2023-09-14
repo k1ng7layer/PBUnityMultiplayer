@@ -24,6 +24,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private readonly IIdGenerator<ushort> _networkObjectIdGenerator;
         private readonly INetworkSpawnedObjectsRepository _networkSpawnedObjectsRepository;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
+        private readonly Dictionary<int, NetworkClient> _pendingClientsTable = new();
         private readonly Dictionary<int, NetworkClient> _clientsToDisconnect = new();
         private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
         private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
@@ -257,13 +258,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             if(!hasClient)
                 return;
             
+            Debug.Log($"server HandleAliveCheck for client = {player.Id}");
             //Debug.Log($"server HandleAliveCheck for client = {player.Id}");
             player.LastMessageReceived = DateTime.Now;
         }
         
         private void HandleClientReady(byte[] messagePayload)
         {
+            var byteReader = new ByteReader(messagePayload, 2);
+            var clientId = byteReader.ReadInt32();
+            var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
             
+            if(!hasClient)
+                return;
+
+            client.IsReady = true;
         }
 
         private void HandleSpawn(byte[] payload)

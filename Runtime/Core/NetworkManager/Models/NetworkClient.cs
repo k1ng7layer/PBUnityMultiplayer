@@ -20,6 +20,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
         public IPEndPoint RemoteEndpoint { get; }
         public bool IsApproved { get; set; }
         public bool IsOnline { get; set; }
+        public bool IsReady { get; set; }
         public DateTime LastMessageReceived { get; set; }
         public DateTime LastMessageSent { get; set; }
 

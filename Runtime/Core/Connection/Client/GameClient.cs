@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
-using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
@@ -282,6 +281,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 
                 byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
                 byteWriter.AddInt32(clientId);
+                
+                Send(byteWriter.Data, ESendMode.Reliable);
             }
             
             LocalClientAuthenticated?.Invoke(result, reason);

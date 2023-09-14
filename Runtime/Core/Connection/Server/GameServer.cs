@@ -427,6 +427,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     ClientLostConnection?.Invoke(networkClient.Id);
                     
                     SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
+                    _clientsToDisconnect.Add(networkClient.Id, networkClient);
                 }
                 
                 if (diff.TotalMilliseconds >= _networkConfiguration.ServerClientDisconnectTime && !networkClient.IsOnline)
@@ -450,6 +451,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     ClientLostConnection?.Invoke(networkClient.Id);
                     
                     SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
+
+                    _clientsToDisconnect.Add(networkClient.Id, networkClient);
                 }
                 
                 if (diff.TotalMilliseconds >= _networkConfiguration.ServerClientDisconnectTime && !networkClient.IsOnline)

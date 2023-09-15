@@ -146,6 +146,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
             byteWriter.AddInt32(owner.Id);
             byteWriter.AddInt32(prefabId);
+            byteWriter.AddVector3(position);
+            byteWriter.AddQuaternion(rotation);
             byteWriter.AddUshort(id);
 
             _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);

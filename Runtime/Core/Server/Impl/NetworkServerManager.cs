@@ -108,15 +108,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             spawnedObject.Spawn(objectId, false);
             owner.AddOwnership(spawnedObject);
 
-            var hasHandler = _networkSpawnHandlerService.TryGetHandlerId<T>(out var handlerId);
+            var handlerId = typeof(T).FullName;
 
-            if (!hasHandler)
-                throw new Exception($"[{nameof(NetworkServerManager)}] can't process unregister handler");
+            // if (!hasHandler)
+            //     throw new Exception($"[{nameof(NetworkServerManager)}] can't process unregister handler");
 
             var messageBytes = BinarySerializationHelper.Serialize(message);
             var byteWriter = new ByteWriter();
             
-            _networkSpawnHandlerService.CallHandler(handlerId, messageBytes, spawnedObject);
+           // _networkSpawnHandlerService.CallHandler(handlerId, messageBytes, spawnedObject);
             
             byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
             byteWriter.AddInt32(owner.Id);

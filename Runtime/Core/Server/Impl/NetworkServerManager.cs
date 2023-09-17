@@ -9,6 +9,7 @@ using PBUnityMultiplayer.Runtime.Core.Connection.Server;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling;
 using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using PBUnityMultiplayer.Runtime.Core.NetworkObjects;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
@@ -97,7 +98,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.Stop();
         }
 
-        public void Spawn<T>(int prefabId, 
+        public NetworkObject Spawn<T>(int prefabId, 
             NetworkClient owner, 
             Vector3 position, 
             Quaternion rotation, 
@@ -129,9 +130,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddUshort(objectId);
             Debug.Log($"client Spawn, id = {objectId}");
             _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
+
+            return spawnedObject;
         }
 
-        public void Spawn(int prefabId, 
+        public NetworkObject Spawn(int prefabId, 
             NetworkClient owner, 
             Vector3 position, 
             Quaternion rotation)
@@ -151,6 +154,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             byteWriter.AddUshort(id);
 
             _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
+            
+            return spawnedObject;
         }
 
         public void SendMessage<T>(T message, int networkClientId) where T : struct

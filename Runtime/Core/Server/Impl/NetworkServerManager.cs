@@ -106,7 +106,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         {
             var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
             var objectId = _networkObjectIdGenerator.Next();
-            spawnedObject.Spawn(objectId, false);
+            spawnedObject.Spawn(objectId, owner.Id, false);
             owner.AddOwnership(spawnedObject);
 
             var handlerId = typeof(T).FullName;
@@ -141,7 +141,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         {
             var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
             var id = _networkObjectIdGenerator.Next();
-            spawnedObject.Spawn(id, false);
+            spawnedObject.Spawn(id, owner.Id, false);
             owner.AddOwnership(spawnedObject);
 
             var byteWriter = new ByteWriter();
@@ -252,7 +252,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             
             var objectId = _networkObjectIdGenerator.Next();
             
-            networkObject.Spawn(objectId, false);
+            networkObject.Spawn(objectId, clientId, false);
             client.AddOwnership(networkObject);
             
             _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
@@ -294,7 +294,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             client.LastMessageReceived = DateTime.Now;
             var objectId = _networkObjectIdGenerator.Next();
             
-            networkObject.Spawn(objectId, false);
+            networkObject.Spawn(objectId, clientId, false);
             client.AddOwnership(networkObject);
 
             var byteWriter = new ByteWriter();

@@ -193,7 +193,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             
             var isLocalObject = _client.LocalClient.Id == objectId;
             
-            networkObject.Spawn(objectId, isLocalObject);
+            networkObject.Spawn(objectId, clientId, isLocalObject);
             
             client.AddOwnership(networkObject);
         }
@@ -221,7 +221,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
                 return;
 
             Debug.Log($"client HandleSpawnHandlerMessage, id = {objectId}");
-            networkObject.Spawn(objectId, clientId == _client.LocalClient.Id);
+            networkObject.Spawn(objectId, clientId, clientId == _client.LocalClient.Id);
             client.AddOwnership(networkObject);
             
             _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);

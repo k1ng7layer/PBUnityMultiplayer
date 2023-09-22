@@ -17,8 +17,12 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Connection.Impl
         [SerializeField] private int serverCheckAliveTime = 4000;
         [SerializeField] private int serverCheckAliveTimeSent = 2000;
         [SerializeField] private int maxClients;
+        [SerializeField] private int serverTickRate = 1;
+        [SerializeField] private int clientTickRateDivergence = 5;
 
         public string ServerIp => serverIp;
+
+        public int ServerSyncTickRate => serverTickRate;
 
         public int ServerPort => serverPort;
 
@@ -39,5 +43,7 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Connection.Impl
         public int ServerCheckAliveTimeSent => serverCheckAliveTimeSent = 2000;
 
         public int MaxClients => maxClients;
+
+        public int ClientTickRateDivergence => clientTickRateDivergence;
     }
 }

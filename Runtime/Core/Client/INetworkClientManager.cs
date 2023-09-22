@@ -11,6 +11,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
 {
     public interface INetworkClientManager
     {
+        int Tick { get; }
+        event Action ClientReady;
         NetworkClient LocalClient { get; }
         void StartClient();
         UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);

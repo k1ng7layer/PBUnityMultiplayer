@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection;
+using PBUnityMultiplayer.Runtime.Core.Messages;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnedRepository;
 using PBUnityMultiplayer.Runtime.Helpers;
@@ -43,6 +44,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
+        public int ServerTick { get; private set; }
 
         internal event Action<NetworkClient, byte[]> ClientConnected;
         internal event Action<int, string> ClientDisconnected;
@@ -101,6 +103,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         internal void Update()
         {
+            ServerTick++;
+            
+            if (ServerTick % _networkConfiguration.ServerSyncTickRate == 0)
+                SendSync();
+            
             ProcessReceiveQueue();
             ProcessSendQueue();
             CheckTimeout();
@@ -187,6 +194,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             _isRunning = false;
             _transportBase.Stop();
+        }
+
+        private void SendSync()
+        {
+            var byteWriter = new ByteWriter(6);
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Sync);
+            byteWriter.AddInt32(ServerTick);
+            
+            SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
         }
         
         private async Task Receive()

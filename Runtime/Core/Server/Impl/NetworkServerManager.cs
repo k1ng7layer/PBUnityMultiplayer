@@ -52,6 +52,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             set => _serverAuthentication = value;
         }
 
+        public int Tick => _server.ServerTick;
         public IReadOnlyDictionary<int, NetworkClient> ConnectedClients => _server.ConnectedPlayers;
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;

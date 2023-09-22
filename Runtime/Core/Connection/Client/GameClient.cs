@@ -37,6 +37,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
       
         public NetworkClient LocalClient { get; private set; }
+        public int Tick { get; private set; }
 
         internal event Action LocalClientConnected;
         internal event Action<string> LocalClientDisconnected;
@@ -100,6 +101,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         internal void Update()
         {
+            Tick++;
             ProcessReceiveQueue();
             SendAliveCheck();
         }
@@ -228,9 +230,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 case ENetworkMessageType.ServerAliveCheck:
                     HandleServerAliveCheck(messagePayload);
                     break;
+                case ENetworkMessageType.Sync:
+                    HandleSync(messagePayload);
+                    break;
             }
         }
 
+        private void HandleSync(byte[] payload)
+        {
+            var byteReader = new ByteReader(payload, 2);
+            var serverTick = byteReader.ReadInt32();
+            if(Mathf.Abs(Tick - serverTick) >= _networkConfiguration.ClientTickRateDivergence)
+                Tick = serverTick;
+        }
+        
         private void HandleServerAliveCheck(byte[] payload)
         {
             _lastMessageReceivedFromServer = DateTime.Now;

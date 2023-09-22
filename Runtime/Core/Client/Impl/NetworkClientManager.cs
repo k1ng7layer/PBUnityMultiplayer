@@ -49,6 +49,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
         }
 
+        public int Tick => _client.Tick;
+        public event Action ClientReady;
         public NetworkClient LocalClient => _client.LocalClient;
 
         public void StartClient()
@@ -171,6 +173,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             if (authenticateResult == EConnectionResult.Reject)
             {
                 StopClient();
+            }
+            else if(authenticateResult == EConnectionResult.Success)
+            {
+                ClientReady?.Invoke();
             }
             
             _clientConnectionEventHandler?.Invoke(this, new AuthenticateResult(authenticateResult, serverMessage));

@@ -16,6 +16,7 @@
         SpawnHandler,
         ClientAliveCheck,
         ServerAliveCheck,
+        Sync,
         None
     }
 }

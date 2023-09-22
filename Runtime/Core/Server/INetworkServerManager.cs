@@ -9,7 +9,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
 {
     public interface INetworkServerManager
     {
-        public IReadOnlyDictionary<int, NetworkClient> ConnectedClients { get; }
+        int Tick { get; }
+        IReadOnlyDictionary<int, NetworkClient> ConnectedClients { get; }
         event Action ClientConnectedToServer;
         event Action<NetworkClient> SeverAuthenticated;
         event Action<NetworkClient> ClientReadyToWork;

@@ -3,6 +3,7 @@
     public interface INetworkConfiguration
     {
         string ServerIp { get;}
+        int ServerSyncTickRate { get; }
         int ServerPort { get;}
         string LocalIp { get;}
         int LocalPort { get;}
@@ -13,5 +14,6 @@
         int ServerCheckAliveTimeOut { get; }
         int ServerCheckAliveTimeSent { get; }
         int MaxClients { get; }
+        int ClientTickRateDivergence { get; }
     }
 }

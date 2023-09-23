@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport;
@@ -36,6 +37,11 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
         protected internal override void Stop()
         {
             _udpTransport.Stop();
+        }
+
+        protected override void OnDispose()
+        {
+            _udpTransport?.Dispose();
         }
     }
 }

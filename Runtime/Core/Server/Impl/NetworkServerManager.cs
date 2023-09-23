@@ -329,5 +329,17 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         {
             _server?.Update();
         }
+
+        private void OnDestroy()
+        {
+            _server.Stop();
+            _server.Dispose();
+        }
+        private void OnDisable()
+        {
+            _server.Stop();
+            _server.Dispose();
+        }
+        
     }
 }

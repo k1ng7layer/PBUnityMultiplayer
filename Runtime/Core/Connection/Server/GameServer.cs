@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport.Utils;
@@ -18,7 +19,7 @@ using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
-    public class GameServer
+    public class GameServer : IDisposable
     {
         private readonly INetworkConfiguration _networkConfiguration;
         private readonly TransportBase _transportBase;
@@ -33,6 +34,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private bool _isRunning;
         private int _nextId;
         private DateTime _lastAliveMessageSent;
+        private CancellationTokenSource _cancellationTokenSource;
        
 
         internal GameServer(
@@ -77,6 +79,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         
         internal void Start()
         {
+            _cancellationTokenSource = new CancellationTokenSource();
+            
             var ipResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
 
             if (!ipResult)
@@ -98,7 +102,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             // Task.Run(async () => await Receive());
             // Task.Run(async () => await ProcessSendQueue());
 
-            Task.Run(async () => await Receive());
+            Task.Run(async () => await Receive(), _cancellationTokenSource.Token);
         }
 
         internal void Update()
@@ -192,6 +196,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         
         internal void Stop()
         {
+            _cancellationTokenSource.Cancel();
             _isRunning = false;
             _transportBase.Stop();
         }
@@ -521,6 +526,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
                 SendToAllPendingClients(byteWriter.Data, ESendMode.Reliable);
             }
+        }
+
+        public void Dispose()
+        {
+            _cancellationTokenSource.Dispose();
+            _transportBase.Dispose();
         }
     }
 }

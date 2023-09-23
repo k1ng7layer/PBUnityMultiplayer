@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using PBUdpTransport.Utils;
@@ -15,7 +16,7 @@ using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 {
-    public class GameClient : Peer
+    public class GameClient : Peer, IDisposable
     {
         private readonly INetworkConfiguration _networkConfiguration;
         private readonly TransportBase _transportBase;
@@ -25,6 +26,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         private IPEndPoint _serverEndPoint;
         private IPEndPoint _localEndPoint;
         private bool _isRunning;
+        private CancellationTokenSource _cancellationTokenSource;
         
         internal GameClient(
             INetworkConfiguration networkConfiguration, 
@@ -74,6 +76,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         
         internal void Start()
         {
+            _cancellationTokenSource = new CancellationTokenSource();
+            
             var localIpResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
 
             if (!localIpResult)
@@ -95,8 +99,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             _isRunning = true;
             
-            Task.Run(async () => await Receive());
-            Task.Run(async () => await ProcessSendQueue());
+            Task.Run(async () => await Receive(), _cancellationTokenSource.Token);
+            Task.Run(async () => await ProcessSendQueue(), _cancellationTokenSource.Token);
         }
 
         internal void Update()
@@ -131,6 +135,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         internal void Stop()
         {
+            _cancellationTokenSource.Cancel();
             _isRunning = false;
             _transportBase.Stop();
             _networkClientsTable.Clear();
@@ -400,6 +405,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 Debug.Log($"ServerLostConnection");
                 Stop();
             }
+        }
+
+        public void Dispose()
+        {
+            _transportBase.Dispose();
+            _cancellationTokenSource?.Dispose();
         }
     }
 }

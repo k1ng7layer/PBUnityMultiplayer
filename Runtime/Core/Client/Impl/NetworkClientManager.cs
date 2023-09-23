@@ -252,5 +252,17 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         {
             _client?.Update();
         }
+
+        private void OnDestroy()
+        {
+            _client.Stop();
+            _client.Dispose();
+        }
+        
+        private void OnDisable()
+        {
+            _client.Stop();
+            _client.Dispose();
+        }
     }
 }

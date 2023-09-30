@@ -74,7 +74,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             byteWriter.AddInt32(payload.Length);
             byteWriter.AddBytes(payload);
             
-            Send(byteWriter.Data, client.RemoteEndpoint, sendMode);
+            Send(byteWriter.Data, client.EndPointHash, sendMode);
         }
         
         internal void Start()
@@ -92,7 +92,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var localEndPoint = new IPEndPoint(ip, _networkConfiguration.ServerPort);
 
             //_udpTransport = new UdpTransport(localEndPoint);
-            
+
+            _transportBase.DataReceived += OnDataReceived;
             _transportBase.StartTransport(localEndPoint);
 
             _isRunning = true;
@@ -102,7 +103,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             // Task.Run(async () => await Receive());
             // Task.Run(async () => await ProcessSendQueue());
 
-            Task.Run(async () => await Receive(), _cancellationTokenSource.Token);
+            //Task.Run(async () => await Receive(), _cancellationTokenSource.Token);
         }
 
         internal void Update()
@@ -124,14 +125,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             ESendMode sendMode
         )
         {
-            var outcomeMessage = new OutcomePendingMessage(data, networkClient.RemoteEndpoint, sendMode);
+            var outcomeMessage = new OutcomePendingMessage(data, networkClient.EndPointHash.GetHashCode(), sendMode);
             
             _sendMessagesQueue.Enqueue(outcomeMessage);
         }
         
         internal void Send(
             byte[] data, 
-            IPEndPoint remoteEndPoint, 
+            int remoteEndPoint, 
             ESendMode sendMode
         )
         {
@@ -147,7 +148,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             foreach (var client in _networkClientsTable.Values)
             {
-                var outcomeMessage = new OutcomePendingMessage(data, client.RemoteEndpoint, sendMode);
+                var outcomeMessage = new OutcomePendingMessage(data, client.EndPointHash, sendMode);
             
                 _sendMessagesQueue.Enqueue(outcomeMessage);
             }
@@ -160,7 +161,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             foreach (var client in _pendingClientsTable.Values)
             {
-                var outcomeMessage = new OutcomePendingMessage(data, client.RemoteEndpoint, sendMode);
+                var outcomeMessage = new OutcomePendingMessage(data, client.EndPointHash, sendMode);
             
                 _sendMessagesQueue.Enqueue(outcomeMessage);
             }
@@ -174,7 +175,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 byteWriter.AddInt32((ushort)ENetworkMessageType.Disconnect);
                 byteWriter.AddString(reason);
 
-                Send(byteWriter.Data, client.RemoteEndpoint, ESendMode.Reliable);
+                Send(byteWriter.Data, client.EndPointHash, ESendMode.Reliable);
 
                 _networkClientsTable.Remove(clientId);
             }
@@ -188,7 +189,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 byteWriter.AddInt32((ushort)ENetworkMessageType.Disconnect);
                 byteWriter.AddString(reason);
 
-                Send(byteWriter.Data, client.RemoteEndpoint, ESendMode.Reliable);
+                Send(byteWriter.Data, client.EndPointHash, ESendMode.Reliable);
 
                 _pendingClientsTable.Remove(clientId);
             }
@@ -209,24 +210,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             
             SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
         }
-        
-        private async Task Receive()
-        {
-            while (_isRunning)
-            {
-                try
-                {
-                    var result = await _transportBase.ReceiveAsync();
-                    var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
-                   // Debug.Log("Received");
 
-                   _receiveMessagesQueue.Enqueue(incomeMessage);
-                }
-                catch (Exception e)
-                {
-                    //Debug.Log(e);
-                }
-            }
+        private void OnDataReceived(EndPoint endPoint, ArraySegment<byte> data)
+        {
+            var incomeMessage = new IncomePendingMessage(data, endPoint);
+            
+            _receiveMessagesQueue.Enqueue(incomeMessage);
         }
         
         private void ProcessReceiveQueue()
@@ -242,22 +231,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             }
         }
 
-        private async UniTask ProcessSendQueue()
+        private void ProcessSendQueue()
         {
             while (_sendMessagesQueue.Count > 0)
             {
-                try
-                {
-                    var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
+                var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
                 
-                    if (canDequeue)
-                    {
-                        await _transportBase.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
-                    }
-                }
-                catch (Exception e)
+                if (canDequeue)
                 {
-                    Debug.LogError(e);
+                    _transportBase.Send(message.Payload, message.connectionHash, message.SendMode);
                 }
             }
         }
@@ -265,7 +247,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private void HandleIncomeMessage(IncomePendingMessage incomePendingMessage)
         {
             var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
-            var messagePayload = incomePendingMessage.Payload;
+            var messagePayload = incomePendingMessage.Payload.Array;
             
             switch (messageType)
             {
@@ -359,7 +341,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             NetworkMessageReceived?.Invoke(payload);
         }
 
-        private void HandleNewConnection(byte[] messagePayload, IPEndPoint remoteEndPoint)
+        private void HandleNewConnection(byte[] messagePayload, EndPoint remoteEndPoint)
         {
             var messageType = MessageHelper.GetMessageType(messagePayload);
 
@@ -371,7 +353,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 byteWriter.AddUshort((ushort)EConnectionResult.Reject);
                 byteWriter.AddString("Server is full");
                 
-                Send(byteWriter.Data, remoteEndPoint, ESendMode.Reliable);
+                Send(byteWriter.Data, remoteEndPoint.GetHashCode(), ESendMode.Reliable);
                 
                 return;
             }
@@ -389,11 +371,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     _pendingClientsTable.Add(clientId, networkClient);
                     
                     var byteWriter = new ByteWriter();
+
+                    var endPoint = (IPEndPoint)remoteEndPoint;
                     
                     byteWriter.AddUshort((ushort)ENetworkMessageType.ClientConnected);
                     byteWriter.AddInt32(clientId);
-                    byteWriter.AddString(remoteEndPoint.Address.ToString());
-                    byteWriter.AddInt32(remoteEndPoint.Port);
+                    byteWriter.AddString(endPoint.Address.ToString());
+                    byteWriter.AddInt32(endPoint.Port);
 
                     Send(byteWriter.Data, networkClient, ESendMode.Reliable);
                     
@@ -530,6 +514,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         public void Dispose()
         {
+            _transportBase.DataReceived -= OnDataReceived;
             _cancellationTokenSource.Dispose();
             _transportBase.Dispose();
         }

@@ -1,29 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
-using Cysharp.Threading.Tasks;
 using kcp2k;
-using PBUdpTransport.Models;
+using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection.Impl;
 using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Transport.Impl
-{
-    public class ServerKcpTransport : TransportBase
+{                   
+    public class ServerKcpTransport : MonoBehaviour, 
+        INetworkTransport
     {
         [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
+        private readonly Dictionary<int, IPEndPoint> _connectionIdMap = new();
         
         private KcpServer _server;
+        private bool _running;
 
-        public override event Action<EndPoint, ArraySegment<byte>> DataReceived;
+        public event Action<EndPoint, ArraySegment<byte>> DataReceived;
 
-        protected internal override void StartTransport(IPEndPoint localEndPoint)
+        public void Start(IPEndPoint localEndPoint)
         {
             _server = new KcpServer(OnConnected, OnData, OnDisconnected, OnError, new KcpConfig());
             _server.Start((ushort)networkConfiguration.ServerPort);
+            _running = true;
         }
-
+        
         private void OnData(int connectionHash, ArraySegment<byte> data, KcpChannel channel)
         {
             var hasEndpoint = _connectionIdMap.TryGetValue(connectionHash, out var endPoint);
@@ -39,6 +42,8 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
             var hash = connectionId.GetHashCode();
             
             _connectionIdMap.Add(hash, (IPEndPoint)connectionId);
+            
+            Debug.Log($"OnConnected");
         } 
         
         private void OnDisconnected(EndPoint connectionId)
@@ -46,26 +51,31 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
             var hash = connectionId.GetHashCode();
             
             _connectionIdMap.Remove(hash);
+            
+            Debug.Log($"OnDisconnected");
         } 
         
         private void OnError(EndPoint connectionId, ErrorCode errorCode, string message)
         {
             
-        } 
+        }
 
-        protected internal override void Send(byte[] data, int connectionHash, ESendMode sendMode)
+        public void Send(byte[] data, int connectionHash, ESendMode sendMode)
         {
             _server.Send(connectionHash, data, KcpChannel.Reliable);
         }
 
-        protected internal override void Stop()
+        public void Tick()
         {
-            _server.Stop();
+            if(!_running)return;
+            
+            _server.Tick();
         }
 
-        private void FixedUpdate()
+        public void Stop()
         {
-            _server.Tick();
+            _running = false;
+            _server.Stop();
         }
     }
 }

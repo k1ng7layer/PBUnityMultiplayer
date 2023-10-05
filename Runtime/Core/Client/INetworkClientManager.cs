@@ -15,7 +15,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
         event Action ClientReady;
         NetworkClient LocalClient { get; }
         void StartClient();
-        UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password);
+        UniTask<AuthenticateResult> ConnectToServerAsync(IPEndPoint serverEndPoint, string password);
+        void ConnectToServer(IPEndPoint serverEndPoint, string password);
         void StopClient();
         void SendMessage<T>(T message, ESendMode sendMode);
         void Spawn(int prefabId, Vector3 position, Quaternion rotation);

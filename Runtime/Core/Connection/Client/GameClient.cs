@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
-using Cysharp.Threading.Tasks;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Connection;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
@@ -96,7 +94,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             _serverEndPoint = new IPEndPoint(serverIp, _networkConfiguration.ServerPort);
             _serverEndPointHash = _serverEndPoint.GetHashCode();
-            _transportBase.StartTransport(_localEndPoint);
+            _transportBase.StartTransport(_serverEndPoint);
 
             _isRunning = true;
 
@@ -180,7 +178,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         private void HandleIncomeMessage(IncomePendingMessage incomePendingMessage)
         {
             var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
-            var messagePayload = incomePendingMessage.Payload.Array;
+            Debug.Log($"received msg = {messageType}");
+            var messagePayload = incomePendingMessage.Payload.Slice(0, incomePendingMessage.Payload.Count).ToArray();
             switch (messageType)
             {
                 case ENetworkMessageType.ClientDisconnected:
@@ -359,6 +358,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         private void SendAliveCheck()
         {
+            Debug.Log($"SendAliveCheck = {_isRunning}, {LocalClient != null}");
             if(!_isRunning || LocalClient == null)
                 return;
             

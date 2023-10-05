@@ -9,16 +9,18 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
     {
         private readonly Dictionary<int, NetworkObject> _spawnedObjects = new();
         internal IReadOnlyDictionary<int, NetworkObject> SpawnedObjects => _spawnedObjects;
+        private readonly int _connectionHash;
 
         public NetworkClient(int id, EndPoint remoteEndpoint)
         {
             Id = id;
             RemoteEndpoint = remoteEndpoint;
+            _connectionHash = RemoteEndpoint.GetHashCode();
         }
 
         public int Id { get; }
         public EndPoint RemoteEndpoint { get; }
-        public int EndPointHash { get; set; }
+        public int EndPointHash => _connectionHash;
         public bool IsApproved { get; set; }
         public bool IsOnline { get; set; }
         public bool IsReady { get; set; }

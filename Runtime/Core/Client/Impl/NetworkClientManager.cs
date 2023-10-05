@@ -63,7 +63,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _client.Start();
         }
 
-        public UniTask<AuthenticateResult> ConnectToServerAsClientAsync(IPEndPoint serverEndPoint, string password)
+        public UniTask<AuthenticateResult> ConnectToServerAsync(IPEndPoint serverEndPoint, string password)
         {
             if (!_isRunning)
                 throw new Exception($"[{nameof(NetworkClientManager)}] must call StartClient first");
@@ -95,7 +95,28 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             
             return tcs.Task;
         }
-        
+
+        public void ConnectToServer(IPEndPoint serverEndPoint, string password)
+        {
+            if (!_isRunning)
+                throw new Exception($"[{nameof(NetworkClientManager)}] must call StartClient first");
+                    
+            _client.LocalClientConnected += OnLocalClientConnected;
+            _client.LocalClientAuthenticated += OnClientAuthenticated;
+            _client.SpawnReceived += HandleSpawnMessage;
+            _client.SpawnHandlerReceived += HandleSpawnHandlerMessage;
+            _client.NetworkMessageReceived += HandleNetworkMessage;
+            _client.ServerLostConnection += OnServerLostConnection;
+            
+            var pwdBytes = Encoding.UTF8.GetBytes(password);
+            var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
+            
+            writer.AddUshort((ushort)ENetworkMessageType.ConnectionRequest);
+            writer.AddString(password);
+            
+            _client.Send(writer.Data, serverEndPoint, ESendMode.Reliable);
+        }
+
         public void StopClient()
         {
             _client.Stop();

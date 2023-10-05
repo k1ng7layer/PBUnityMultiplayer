@@ -1,5 +1,6 @@
 // kcp server logic abstracted into a class.
 // for use in Mirror, DOTSNET, testing, etc.
+
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -277,7 +278,7 @@ namespace kcp2k
 
         // receive + add + process once.
         // best to call this as long as there is more data to receive.
-        void ProcessMessage(ArraySegment<byte> segment, int connectionId)
+        void ProcessMessage(ArraySegment<byte> segment, int connectionId, EndPoint remoteEndpoint)
         {
             //Log.Info($"KCP: server raw recv {msgLength} bytes = {BitConverter.ToString(buffer, 0, msgLength)}");
 
@@ -286,7 +287,7 @@ namespace kcp2k
             {
                 // create a new KcpConnection based on last received
                 // EndPoint. can be overwritten for where-allocation.
-                connection = CreateConnection(connectionId, connection.remoteEndPoint);
+                connection = CreateConnection(connectionId, remoteEndpoint);
 
                 // DO NOT add to connections yet. only if the first message
                 // is actually the kcp handshake. otherwise it's either:
@@ -333,7 +334,7 @@ namespace kcp2k
             // input all received messages into kcp
             while (RawReceiveFrom(out ArraySegment<byte> segment, out int connectionId))
             {
-                ProcessMessage(segment, connectionId);
+                ProcessMessage(segment, connectionId, newClientEP);
             }
 
             // process inputs for all server connections

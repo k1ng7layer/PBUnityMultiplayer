@@ -22,6 +22,11 @@ namespace PBUnityMultiplayer.Runtime.Transport
             Send(data, connectionHash, sendMode);
         }
 
+        public void Tick()
+        {
+            
+        }
+
         void INetworkTransport.Stop()
         {
             Stop();

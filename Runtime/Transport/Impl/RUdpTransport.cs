@@ -22,6 +22,11 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
             throw new NotImplementedException();
         }
 
+        public void Tick()
+        {
+            throw new NotImplementedException();
+        }
+
         public void Stop()
         {
             throw new NotImplementedException();

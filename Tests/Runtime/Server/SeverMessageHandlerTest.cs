@@ -58,7 +58,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             byteWriter.AddInt32(payload.Length);
             byteWriter.AddBytes(payload);
             
-            transport.AddIncomeMessageToReturn(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
+            transport.ProcessMessage(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
             
             yield return new WaitUntilWithTimeOut((() => _message == MessageText), 2f);
             

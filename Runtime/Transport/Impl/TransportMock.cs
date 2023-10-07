@@ -24,7 +24,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
         private readonly Queue<TestMessage> _messages = new();
         private bool _running;
         
-        public void AddIncomeMessageToReturn(TestMessage message)
+        public void ProcessMessage(TestMessage message)
         {
             _messages.Enqueue(message);
         }

@@ -29,7 +29,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.TestUtils
 
             var transportMessage = new TestMessage(clientEndpoint, byteWriter.Data);
             
-            transport.AddIncomeMessageToReturn(transportMessage);
+            transport.ProcessMessage(transportMessage);
             
             yield return new WaitForSeconds(2f);
             

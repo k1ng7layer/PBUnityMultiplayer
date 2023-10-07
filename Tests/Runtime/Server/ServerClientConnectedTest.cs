@@ -41,7 +41,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
 
             var transportMessage = new TestMessage(clientEndpoint, byteWriter.Data);
             
-            transport.AddIncomeMessageToReturn(transportMessage);
+            transport.ProcessMessage(transportMessage);
             
             yield return new WaitForSeconds(2f);
             
@@ -66,7 +66,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
             byteWriter.AddInt32(client.Id);
             
-            transport.AddIncomeMessageToReturn(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
+            transport.ProcessMessage(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
 
             yield return new WaitForSecondsRealtime(2f);
             

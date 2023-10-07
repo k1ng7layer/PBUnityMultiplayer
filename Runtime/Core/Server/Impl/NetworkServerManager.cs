@@ -6,9 +6,7 @@ using PBUnityMultiplayer.Runtime.Configuration.Server.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Connection.Server;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
-using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport;
-using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator.Impl;
 using UnityEngine;
@@ -53,31 +51,16 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.Stop();
         }
 
-        public void SendMessage<T>(T message, int networkClientId) where T : struct
+        public void SendMessage<T>(int networkClientId, T message, ESendMode sendMode) where T : struct
         {
-            var handlerId = typeof(T).FullName;
-            var hasClient = _server.ClientsTable.TryGetValue(networkClientId, out var client);
-            
-            if(!hasClient)
-                return;
-
-            var payload = BinarySerializationHelper.Serialize(message);
-            
-            var byteWriter = new ByteWriter();
-            
-            byteWriter.AddUshort((ushort)ENetworkMessageType.NetworkMessage);
-            byteWriter.AddString(handlerId);
-            byteWriter.AddInt32(payload.Length);
-            byteWriter.AddBytes(payload);
-            
-            _server.SendMessage(networkClientId, byteWriter.Data, ESendMode.Reliable);
+            _server.SendMessage(networkClientId, message, sendMode);
         }
 
-        public void SendMessage<T>(T message) where T : struct
+        public void SendMessage<T>(T message, ESendMode sendMode) where T : struct
         {
             foreach (var connectedClient in _server.Clients)
             {
-                _server.SendMessage(connectedClient.Id, message, ESendMode.Reliable);
+                _server.SendMessage(connectedClient.Id, message, sendMode);
             }
         }
 

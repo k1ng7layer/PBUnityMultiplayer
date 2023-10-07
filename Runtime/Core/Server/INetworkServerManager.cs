@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 
 namespace PBUnityMultiplayer.Runtime.Core.Server
@@ -16,8 +17,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
         
         void StartServer();
         void StopServer();
-        void SendMessage<T>(T message, int networkClientId) where T : struct;
-        void SendMessage<T>(T message) where T : struct;
+        void SendMessage<T>(int networkClientId, T message, ESendMode sendMode) where T : struct;
+        void SendMessage<T>(T message, ESendMode sendMode) where T : struct;
         void RegisterMessageHandler<T>(Action<T> handler) where T: struct;
     }
 }

@@ -51,9 +51,14 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _networkTransport.Start(new IPEndPoint(IPAddress.Any, _serverConfiguration.Port));
         }
 
-        public void SendMessage(int clientConnectionHash, byte[] data, ESendMode sendMode)
+        public void SendMessage(int clientId, byte[] data, ESendMode sendMode)
         {
-            _networkTransport.Send(data, clientConnectionHash, sendMode);
+            var hasClient = ClientsTable.TryGetValue(clientId, out var client);
+            
+            if(!hasClient)
+                return;
+            
+            _networkTransport.Send(data, client.EndPointHash, sendMode);
         }
         
         public void SendMessage(byte[] data, ESendMode sendMode)
@@ -75,10 +80,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             }
         }
         
-        public void SendMessage<T>(int clientConnectionHash, T message, ESendMode sendMode) where T : struct
+        public void SendMessage<T>(int clientId, T message, ESendMode sendMode) where T : struct
         {
             var handlerId = typeof(T).FullName;
-            var hasClient = ClientsTable.TryGetValue(clientConnectionHash, out var client);
+            var hasClient = ClientsTable.TryGetValue(clientId, out var client);
             
             if(!hasClient)
                 return;
@@ -92,7 +97,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             byteWriter.AddInt32(payload.Length);
             byteWriter.AddBytes(payload);
             
-            _networkTransport.Send(byteWriter.Data, clientConnectionHash, sendMode);
+            _networkTransport.Send(byteWriter.Data, client.EndPointHash, sendMode);
         }
 
         public void Tick()
@@ -153,7 +158,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         private void HandleAliveCheck(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(data);
+            var byteReader = new SegmentByteReader(data, 2);
             
             var clientId = byteReader.ReadInt32();
 
@@ -173,7 +178,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         private void HandleClientReady(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(data);
+            var byteReader = new SegmentByteReader(data, 2);
             var clientId = byteReader.ReadInt32();
             var hasClient = _pendingClients.TryGetValue(clientId, out var client);
             
@@ -197,8 +202,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         private void HandleNetworkMessage(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(data);
-            var networkMessageId = byteReader.ReadString();
+            var byteReader = new SegmentByteReader(data, 2);
+            var networkMessageId = byteReader.ReadString(out _);
             var payloadLength = byteReader.ReadInt32();
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);
 
@@ -207,7 +212,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         private void HandleClientReconnected(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(data);
+            var byteReader = new SegmentByteReader(data, 2);
             var clientId = byteReader.ReadInt32();
 
             var hasClient = _clientsTable.TryGetValue(clientId, out var client);
@@ -221,7 +226,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         private void HandleClientDisconnected(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(data);
+            var byteReader = new SegmentByteReader(data, 2);
             var clientId = byteReader.ReadInt32();
 
             var hasPlayer = _clientsTable.TryGetValue(clientId, out var client);

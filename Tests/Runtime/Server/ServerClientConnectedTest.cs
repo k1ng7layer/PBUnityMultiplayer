@@ -1,17 +1,20 @@
 using System.Collections;
+using System.Linq;
 using System.Net;
 using NUnit.Framework;
 using PBUnityMultiplayer.Runtime.Core.Server.Impl;
 using PBUnityMultiplayer.Runtime.Transport.Impl;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
+using PBUnityMultiplayer.Tests.Runtime.TestUtils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
 namespace PBUnityMultiplayer.Tests.Runtime.Server
 {
-    public class ServerClientConnectedTest
+    
+    public class ServerConnectionTest
     {
         private const string Scene = "ServerClientConnectTest";
         
@@ -43,6 +46,31 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             yield return new WaitForSeconds(2f);
             
             Assert.AreEqual(1, serverManager.ConnectedClients.Count);
+        }
+
+        [UnityTest]
+        public IEnumerator ClientDisconnectedFromServerTest()
+        {
+            SceneManager.LoadScene(Scene);
+            
+            yield return new WaitForSeconds(2f);
+            
+            yield return ServerUtils.ConnectClientToServer();
+            
+            var serverManager = Object.FindObjectOfType<NetworkServerManager>();
+            var client = serverManager.Clients.First();
+            var transport = Object.FindObjectOfType<TransportMock>();
+            
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+            byteWriter.AddInt32(client.Id);
+            
+            transport.AddIncomeMessageToReturn(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
+
+            yield return new WaitForSecondsRealtime(2f);
+            
+            Assert.True(serverManager.ConnectedClients.Count == 0);
         }
         
     }

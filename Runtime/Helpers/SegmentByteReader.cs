@@ -21,17 +21,26 @@ namespace PBUnityMultiplayer.Runtime.Helpers
 
         public int ReadInt32()
         {
-            return BitConverter.ToInt32(_arraySegment.Slice(_readPosition, 4));
+            var value = BitConverter.ToInt32(_arraySegment.Slice(_readPosition, 4));
+            _readPosition += 4;
+            
+            return value;
         }
 
         public float ReadFloat()
         {
-            return BitConverter.ToSingle(_arraySegment.Slice(_readPosition, 4));
+            var value = BitConverter.ToSingle(_arraySegment.Slice(_readPosition, 4));
+            _readPosition += 4;
+            
+            return value;
         }
         
         public float ReadUshort()
         {
-            return BitConverter.ToUInt16(_arraySegment.Slice(_readPosition, 2));
+            var value = BitConverter.ToUInt16(_arraySegment.Slice(_readPosition, 2));
+            _readPosition += 2;
+
+            return value;
         }
         
         public string ReadString(out int stringLength)
@@ -41,6 +50,8 @@ namespace PBUnityMultiplayer.Runtime.Helpers
                 Array.Empty<byte>() : _arraySegment.Slice(_readPosition, stringLength);
             var result = Encoding.UTF8.GetString(stringBytes);
 
+            _readPosition += stringLength;
+
             return result;
         }
 
@@ -49,7 +60,10 @@ namespace PBUnityMultiplayer.Runtime.Helpers
             if (_readPosition + count > _arraySegment.Count)
                 throw new IndexOutOfRangeException();
             
-            return _arraySegment.Slice(_readPosition, count).ToArray();
+            var value =  _arraySegment.Slice(_readPosition, count).ToArray();
+            _readPosition += value.Length;
+
+            return value;
         }
     }
 }

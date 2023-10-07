@@ -235,8 +235,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
             if (hasPlayer)
             {
-                client.IsOnline = false;
-
+                _clientsTable.Remove(clientId);
+                _clients.Remove(client);
                 ClientDisconnected?.Invoke(clientId);
             }
         }

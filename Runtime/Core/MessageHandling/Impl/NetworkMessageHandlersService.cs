@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
 {
@@ -31,6 +32,7 @@ namespace PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl
 
         public void CallHandler(string id, byte[] payload)
         {
+            Debug.Log($"CallHandler {id}");
             var hasHandler = _registeredHandlersTable.TryGetValue(id, out var handlers);
             
             if(!hasHandler)

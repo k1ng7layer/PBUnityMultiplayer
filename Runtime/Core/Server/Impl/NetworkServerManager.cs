@@ -21,11 +21,12 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         [SerializeField] private bool useAuthentication;
         [SerializeField] private TransportBase transportBase;
         [SerializeField] private AuthenticationServiceBase _serverAuthentication;
-        
+
         private GameServer _server;
         private bool _running;
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedClients => _server.ClientsTable;
+        public IEnumerable<NetworkClient> Clients => _server.Clients;
         public int Tick => _server.CurrentTick;
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;

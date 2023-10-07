@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Net;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
@@ -9,38 +8,19 @@ namespace PBUnityMultiplayer.Runtime.Transport
 {
     public abstract class TransportBase : MonoBehaviour, IDisposable, INetworkTransport
     {
-        protected readonly Dictionary<int, IPEndPoint> _connectionIdMap = new();
-        public abstract event Action<EndPoint, ArraySegment<byte>> DataReceived; 
-        protected internal abstract void StartTransport(IPEndPoint localEndPoint);
-        public void Start(IPEndPoint localEndPoint)
-        {
-            throw new NotImplementedException();
-        }
-
-        void INetworkTransport.Send(byte[] data, int connectionHash, ESendMode sendMode)
-        {
-            Send(data, connectionHash, sendMode);
-        }
-
-        public void Tick()
-        {
-            
-        }
-
-        void INetworkTransport.Stop()
-        {
-            Stop();
-        }
-
-        protected internal abstract void Send(byte[] data, int connectionHash, ESendMode sendMode);
-        protected internal abstract void Stop();
-
         public void Dispose()
         {
-            OnDispose();
+            // TODO release managed resources here
         }
 
-        protected virtual void OnDispose()
-        { }
+        public abstract event Action<EndPoint, ArraySegment<byte>> DataReceived;
+
+        public abstract void StartTransport(IPEndPoint localEndPoint);
+
+        public abstract void Send(byte[] data, int connectionHash, ESendMode sendMode);
+
+        public abstract void Tick();
+
+        public abstract void Stop();
     }
 }

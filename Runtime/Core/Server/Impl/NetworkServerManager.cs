@@ -42,6 +42,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.ConnectionApproveCallback += OnClientConnected;
             
             _server.StartServer();
+            
+            _running = true;
         }
 
         public void StopServer() 

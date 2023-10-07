@@ -57,7 +57,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             var serverEndPoint = new IPEndPoint(serverIp, _clientConfiguration.ServerPort);
             _serverEndPointHash = serverEndPoint.GetHashCode();
-            _networkTransport.Start(serverEndPoint);
+            _networkTransport.StartTransport(serverEndPoint);
             
             _networkTransport.DataReceived += OnDataReceived;
         }

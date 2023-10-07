@@ -47,8 +47,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         public void StartServer()
         {
+            _running = true;
             _networkTransport.DataReceived += OnDataFromTransportReceived;
-            _networkTransport.Start(new IPEndPoint(IPAddress.Any, _serverConfiguration.Port));
+            _networkTransport.StartTransport(new IPEndPoint(IPAddress.Any, _serverConfiguration.Port));
+        }
+        
+        public void Stop()
+        {
+            _running = false;
+            _networkTransport.Stop();
         }
 
         public void SendMessage(int clientId, byte[] data, ESendMode sendMode)
@@ -108,11 +115,6 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             CurrentTick++;
             
             _networkTransport.Tick();
-        }
-        
-        public void Stop()
-        {
-            _networkTransport.Stop();
         }
 
         public void Disconnect(int clientId)
@@ -266,7 +268,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             
             _pendingClients.Add(id, client);
 
-            var connectResult = ConnectionApproveCallback(id, data.Slice(2, data.Count));
+            var connectResult = ConnectionApproveCallback(id, data.Slice(2, data.Count - 2));
 
             byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
             

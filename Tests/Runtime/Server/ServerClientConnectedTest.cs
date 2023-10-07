@@ -1,14 +1,12 @@
 using System.Collections;
 using System.Net;
 using NUnit.Framework;
-using PBUdpTransport.Models;
 using PBUnityMultiplayer.Runtime.Core.Server.Impl;
 using PBUnityMultiplayer.Runtime.Transport.Impl;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.TestRunner;
 using UnityEngine.TestTools;
 
 namespace PBUnityMultiplayer.Tests.Runtime.Server
@@ -18,7 +16,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
         private const string Scene = "ServerClientConnectTest";
         
         [UnityTest]
-        public IEnumerator NewClientConnectedTest()
+        public IEnumerator NewClientConnectedWithPasswordTest()
         {
             SceneManager.LoadScene(Scene);
 
@@ -38,17 +36,14 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
 
             var clientEndpoint = new IPEndPoint(IPAddress.Any, 9999);
 
-            var transportMessage = new TransportMessage(byteWriter.Data, clientEndpoint);
+            var transportMessage = new TestMessage(clientEndpoint, byteWriter.Data);
             
             transport.AddIncomeMessageToReturn(transportMessage);
             
-            yield return new WaitForSeconds(1f);
-            
-            transport.AddIncomeMessageToReturn(null);
-                
             yield return new WaitForSeconds(2f);
             
             Assert.AreEqual(1, serverManager.ConnectedClients.Count);
         }
+        
     }
 }

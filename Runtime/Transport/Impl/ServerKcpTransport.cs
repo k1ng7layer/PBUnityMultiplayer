@@ -20,7 +20,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
 
         public event Action<EndPoint, ArraySegment<byte>> DataReceived;
 
-        public void Start(IPEndPoint localEndPoint)
+        public void StartTransport(IPEndPoint localEndPoint)
         {
             _server = new KcpServer(OnConnected, OnData, OnDisconnected, OnError, new KcpConfig());
             _server.Start((ushort)networkConfiguration.ServerPort);

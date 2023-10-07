@@ -14,9 +14,7 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Server.Impl
         public ushort Port => port;
 
         public ushort MaxClients => maxClients;
-
         public double ClientAliveTimeOutMilliseconds => clientAliveTimeOutMilliseconds;
-
         public double ServerPingTimeRateMilliseconds => serverPingTimeRateMilliseconds;
     }
 }

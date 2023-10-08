@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl;
+using PBUnityMultiplayer.Runtime.Configuration.Server;
 using PBUnityMultiplayer.Runtime.Configuration.Server.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
 using PBUnityMultiplayer.Runtime.Core.Connection.Server;
@@ -10,6 +11,7 @@ using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator.Impl;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 {
@@ -20,7 +22,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         [SerializeField] private NetworkPrefabsBase networkPrefabsBase;
         [SerializeField] private bool useAuthentication;
         [SerializeField] private TransportBase transportBase;
-        [SerializeField] private AuthenticationServiceBase _serverAuthentication;
+        [SerializeField] private AuthenticationServiceBase serverAuthentication;
 
         private GameServer _server;
         private bool _running;
@@ -33,6 +35,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         public event Action<int> ClientReady;
         public event Action<int> ClientDisconnected;
         public event Action<int> ClientConnected;
+        public IServerConfiguration Configuration => networkConfiguration;
 
         public void StartServer()
         {
@@ -75,7 +78,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         private AuthenticateResult OnClientConnected(int clientId, ArraySegment<byte> connectionMessage)
         {
             if (useAuthentication)
-                return _serverAuthentication.Authenticate(clientId, connectionMessage);
+                return serverAuthentication.Authenticate(clientId, connectionMessage);
             
             return new AuthenticateResult(EConnectionResult.Success, "");
         }

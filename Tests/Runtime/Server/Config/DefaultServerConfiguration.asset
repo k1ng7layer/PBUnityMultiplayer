@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   port: 5555
   maxClients: 1
-  clientAliveTimeOutMilliseconds: 0
-  serverPingTimeRateMilliseconds: 0
+  clientAliveTimeOutMilliseconds: 5000
+  serverPingTimeRateMilliseconds: 2000

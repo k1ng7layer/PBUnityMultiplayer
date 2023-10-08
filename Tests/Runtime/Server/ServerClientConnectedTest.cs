@@ -73,6 +73,55 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             
             Assert.True(serverManager.ConnectedClients.Count == 0);
         }
+
+        [UnityTest]
+        public IEnumerator DisconnectClientByTimeOutTest()
+        {
+            SceneManager.LoadScene(Scene);
+            
+            yield return new WaitForSeconds(2f);
+            
+            yield return ServerUtils.ConnectClientToServer();
+            
+            var serverManager = Object.FindObjectOfType<NetworkServerManager>();
+            var client = serverManager.Clients.First();
+            var transport = Object.FindObjectOfType<TransportMock>();
+            var timeOut = (float)serverManager.Configuration.ClientTimeOutMilliseconds / 1000f;
+            var pingSendRate = (timeOut / 2f)/1000f;
+            
+            SendPingMessage(transport, client.Id);
+            
+            Assert.AreEqual(1, serverManager.ConnectedClients.Count);
+
+            yield return new WaitForSeconds(pingSendRate);
+         
+            SendPingMessage(transport, client.Id);
+            
+            yield return new WaitForSeconds(pingSendRate);
+            
+            Assert.True(serverManager.ConnectedClients.Count == 1);
+            
+            SendPingMessage(transport, client.Id);
+            
+            yield return new WaitForSeconds(pingSendRate);
+            
+            Assert.True(serverManager.ConnectedClients.Count == 1);
+            
+            yield return new WaitForSeconds(timeOut + 0.5f);
+          
+            Assert.IsEmpty(serverManager.ConnectedClients);
+        }
+
+        private void SendPingMessage(TransportMock transport, int clientId)
+        {
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Ping);
+            byteWriter.AddInt32(clientId);
+
+            var message = new TestMessage(null, byteWriter.Data);
+            transport.ProcessMessage(message);
+        }
         
     }
 }

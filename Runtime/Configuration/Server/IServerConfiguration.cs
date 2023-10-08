@@ -4,7 +4,7 @@
     {
         ushort Port { get; }
         ushort MaxClients { get;}
-        double ClientAliveTimeOutMilliseconds { get;}
-        double ServerPingTimeRateMilliseconds { get;}
+        double ClientTimeOutMilliseconds { get;}
+        double ServerPingTimeMilliseconds { get;}
     }
 }

@@ -11,6 +11,7 @@ using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
@@ -115,6 +116,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             CurrentTick++;
             
             _networkTransport.Tick();
+            
+            ProcessTimeOuts();
         }
 
         public void Disconnect(int clientId)
@@ -124,6 +127,27 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
             if (_pendingClients.ContainsKey(clientId))
                 _pendingClients.Remove(clientId);
+        }
+        
+        public void Disconnect(int clientId, string reason)
+        {
+            var hasClient = _clientsTable.TryGetValue(clientId, out var client);
+            
+            if(!hasClient)
+                return;
+            
+            if (_clientsTable.ContainsKey(clientId))
+                _clientsTable.Remove(clientId);
+
+            if (_pendingClients.ContainsKey(clientId))
+                _pendingClients.Remove(clientId);
+            
+            var byteWriter = new ByteWriter();
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+            byteWriter.AddInt32(clientId);
+            byteWriter.AddString(reason);
+            
+            SendMessage(byteWriter.Data, ESendMode.Reliable);
         }
 
         public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
@@ -155,7 +179,23 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.ClientAliveCheck:
                     HandleAliveCheck(data);
                     break;
+                case ENetworkMessageType.Ping:
+                    HandlePing(data);
+                    break;
             }
+        }
+
+        private void HandlePing(ArraySegment<byte> data)
+        {
+            var byteReader = new SegmentByteReader(data, 2);
+            var clientId = byteReader.ReadInt32();
+
+            var hasClient = _clientsTable.TryGetValue(clientId, out var client);
+            
+            if(!hasClient)
+                return;
+
+            client.LastMessageReceived = DateTime.Now;
         }
 
         private void HandleAliveCheck(ArraySegment<byte> data)
@@ -289,6 +329,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             switch (connectResult.ConnectionResult)
             {
                 case EConnectionResult.Success:
+                    client.LastMessageReceived = DateTime.Now;
                     _pendingClients.Remove(id);
                     _clientsTable.Add(id, client);
                     _clients.Add(client);
@@ -303,6 +344,19 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             }
             
             SendMessage(client.EndPointHash, byteWriter.Data, ESendMode.Reliable);
+        }
+        
+        private void ProcessTimeOuts()
+        {
+            foreach (var client in Clients)
+            {
+                var diff = (DateTime.Now - client.LastMessageReceived).TotalMilliseconds;
+                //Debug.Log($"diff = {diff}");
+                if (diff >= _serverConfiguration.ClientTimeOutMilliseconds)
+                {
+                    Disconnect(client.Id, "TimeOut");
+                }
+            }
         }
         
         public void Dispose()

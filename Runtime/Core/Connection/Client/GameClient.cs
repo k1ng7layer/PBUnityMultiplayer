@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text;
 using PBUdpTransport;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Client;
@@ -60,6 +61,20 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             _networkTransport.StartTransport(serverEndPoint);
             
             _networkTransport.DataReceived += OnDataReceived;
+        }
+        
+        public void ConnectToServer(string password)
+        {
+            if (!_isRunning)
+                throw new Exception($"[{nameof(GameClient)}] must call StartClient first");
+            
+            var pwdBytes = Encoding.UTF8.GetBytes(password);
+            var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
+            
+            writer.AddUshort((ushort)ENetworkMessageType.ConnectionRequest);
+            writer.AddString(password);
+            
+            Send(writer.Data, ESendMode.Reliable);
         }
         
         public void SendMessage<T>(T message, ESendMode sendMode)
@@ -178,7 +193,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
             if (result == EConnectionResult.Success)
             {
-                LocalClient = new NetworkClient(clientId, null);
+                var ipString = byteReader.ReadString(out _);
+                var port = byteReader.ReadInt32();
+
+                var ip = IPAddress.Parse(ipString);
+                var ipEndpoint = new IPEndPoint(ip, port);
+                
+                LocalClient = new NetworkClient(clientId, ipEndpoint);
 
                 var byteWriter = new ByteWriter();
                 
@@ -186,6 +207,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 byteWriter.AddInt32(clientId);
                 
                 Send(byteWriter.Data, ESendMode.Reliable);
+                
+                _networkClientsTable.Add(clientId, LocalClient);
+                _clients.Add(LocalClient);
             }
            
             LocalClientAuthenticated?.Invoke(result, reason);

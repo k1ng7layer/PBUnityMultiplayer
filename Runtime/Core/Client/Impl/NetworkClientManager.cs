@@ -1,12 +1,11 @@
 using System;
-using System.Text;
+using System.Collections.Generic;
 using PBUdpTransport.Utils;
 using PBUnityMultiplayer.Runtime.Configuration.Client.Impl;
 using PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Client;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Transport;
-using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
 
@@ -22,6 +21,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         private GameClient _client;
         private bool _isRunning;
 
+        public IReadOnlyDictionary<int, NetworkClient> ClientsTable => _client.ConnectedPlayers;
+        public IEnumerable<NetworkClient> Clients => _client.Clients;
         public event Action<int> ClientConnected;
         public event Action<int> ClientDisconnected;
         public event Action ClientReady;
@@ -49,16 +50,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
 
         public void ConnectToServer(string password)
         {
-            if (!_isRunning)
-                throw new Exception($"[{nameof(NetworkClientManager)}] must call StartClient first");
-            
-            var pwdBytes = Encoding.UTF8.GetBytes(password);
-            var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
-            
-            writer.AddUshort((ushort)ENetworkMessageType.ConnectionRequest);
-            writer.AddString(password);
-            
-            _client.Send(writer.Data, ESendMode.Reliable);
+            _client.ConnectToServer(password);
         }
 
         public void SendMessage<T>(T message, ESendMode sendMode)

@@ -7,7 +7,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.TestUtils
     public class WaitUntilWithTimeOut : CustomYieldInstruction
     {
         private readonly Func<bool> _func;
-        private readonly float _timeOut;
+        private float _timeOut;
         public override bool keepWaiting => WaitForCondition() || WaitForTimeOut();
 
         public WaitUntilWithTimeOut(Func<bool> func, float timeOut)
@@ -20,18 +20,20 @@ namespace PBUnityMultiplayer.Tests.Runtime.TestUtils
         {
             if (!_func()) return false;
             
-            Assert.True(true);
+            Assert.True(_func());
             
             return true;
         }
 
         private bool WaitForTimeOut()
         {
+            _timeOut -= Time.deltaTime;
+            
             if (_timeOut - Time.deltaTime <= 0)
             {
                 Assert.Fail("TimeOut");
             }
-
+            
             return false;
         }
     }

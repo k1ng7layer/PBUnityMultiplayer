@@ -189,9 +189,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
             client.IsReady = true;
 
+            var clientEndPoint = (IPEndPoint)client.RemoteEndpoint;
+            
             var byteWriter = new ByteWriter();
             byteWriter.AddUshort((ushort)ENetworkMessageType.ClientConnected);
             byteWriter.AddInt32(client.Id);
+            byteWriter.AddString(clientEndPoint.Address.ToString());
+            byteWriter.AddInt32(clientEndPoint.Port);
             
             //Notify all clients except connected, cos it has been already notified 
             var filter = new HashSet<int>();
@@ -239,6 +243,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 _clients.Remove(client);
                 ClientDisconnected?.Invoke(clientId);
             }
+
+            var byteWriter = new ByteWriter();
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+            byteWriter.AddInt32(clientId);
+            byteWriter.AddString("");
+            
+            SendMessage(byteWriter.Data, ESendMode.Reliable);
         }
 
         private void HandleNewConnection(ArraySegment<byte> data, EndPoint remoteEndPoint)
@@ -271,6 +282,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var connectResult = ConnectionApproveCallback(id, data.Slice(2, data.Count - 2));
 
             byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
+            byteWriter.AddUshort((ushort)connectResult.ConnectionResult);
+            byteWriter.AddInt32(client.Id);
+            byteWriter.AddString(connectResult.Message);
             
             switch (connectResult.ConnectionResult)
             {
@@ -279,16 +293,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     _clientsTable.Add(id, client);
                     _clients.Add(client);
                     client.LastMessageReceived = DateTime.Now;
+                    var ipEndpoint = (IPEndPoint)remoteEndPoint;
+                    byteWriter.AddString(ipEndpoint.Address.ToString());
+                    byteWriter.AddInt32(ipEndpoint.Port);
                     break;
                 case EConnectionResult.Reject:
                     _pendingClients.Remove(id);
                     break;
             }
             
-            byteWriter.AddUshort((ushort)connectResult.ConnectionResult);
-            byteWriter.AddInt32(client.Id);
-            byteWriter.AddString(connectResult.Message);
-          
             SendMessage(client.EndPointHash, byteWriter.Data, ESendMode.Reliable);
         }
         

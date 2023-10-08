@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Net;
 using NUnit.Framework;
 using PBUnityMultiplayer.Runtime.Core.Client.Impl;
 using PBUnityMultiplayer.Runtime.Helpers;
@@ -33,12 +34,24 @@ namespace PBUnityMultiplayer.Tests.Runtime.Client
             clientManager.ConnectToServer("");
             clientManager.RegisterMessageHandler<TestHandlerMessage>(OnMessageReceived);
 
+            var byteWriter = new ByteWriter();
+            byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
+            byteWriter.AddUshort((ushort)EConnectionResult.Success);
+            byteWriter.AddInt32(0);
+            byteWriter.AddString("");
+            byteWriter.AddString(IPAddress.Any.ToString());
+            byteWriter.AddInt32(0);
+            
+            var transportMessage = new TestMessage(null, byteWriter.Data);
+            
+            transport.ProcessMessage(transportMessage);
+            
             var message = new TestHandlerMessage
             {
                 payload = MessageText,
             };
             
-            var byteWriter = new ByteWriter();
+            byteWriter = new ByteWriter();
             var handlerId = typeof(TestHandlerMessage).FullName;
             
             var payload = BinarySerializationHelper.Serialize(message);

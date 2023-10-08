@@ -234,7 +234,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         {
             var byteReader = new SegmentByteReader(data, 2);
             var clientId = byteReader.ReadInt32();
-
+            var reason = byteReader.ReadString(out _);
             var hasPlayer = _clientsTable.TryGetValue(clientId, out var client);
 
             if (hasPlayer)
@@ -247,7 +247,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var byteWriter = new ByteWriter();
             byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
             byteWriter.AddInt32(clientId);
-            byteWriter.AddString("");
+            byteWriter.AddString(reason);
             
             SendMessage(byteWriter.Data, ESendMode.Reliable);
         }
@@ -276,7 +276,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             var id = _idGenerator.Next();
             
             client = new NetworkClient(id, remoteEndPoint);
-            
+            client.IsOnline = true;
             _pendingClients.Add(id, client);
 
             var connectResult = ConnectionApproveCallback(id, data.Slice(2, data.Count - 2));

@@ -65,6 +65,7 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
               
             byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
             byteWriter.AddInt32(client.Id);
+            byteWriter.AddString("");
             
             transport.ProcessMessage(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
 

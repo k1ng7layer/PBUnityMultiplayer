@@ -97,9 +97,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         
         public void Stop()
         {
+            if (_isRunning && LocalClient != null && LocalClient.IsOnline)
+            {
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+                byteWriter.AddInt32(LocalClient.Id);
+                byteWriter.AddString("Manual quit");
+            
+                Send(byteWriter.Data, ESendMode.Reliable);
+            }
+            
             _isRunning = false;
             _networkClientsTable.Clear();
             _clients.Clear();
+            
+            LocalClient = null;
         }
 
         public void Tick()
@@ -200,7 +212,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 var ipEndpoint = new IPEndPoint(ip, port);
                 
                 LocalClient = new NetworkClient(clientId, ipEndpoint);
-
+                LocalClient.IsOnline = true;
                 var byteWriter = new ByteWriter();
                 
                 byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);

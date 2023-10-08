@@ -1,26 +1,38 @@
-using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using System;
 using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Authentication.Impl
 {
     public class ServerAuthentication : AuthenticationServiceBase
     {
-        private const string PASSWORD = "12";
-
-        public override void Authenticate(NetworkClient client, byte[] authPayload)
+        [SerializeField] private string serverPassword = "12";
+        
+        public override AuthenticateResult Authenticate(int clientId, ArraySegment<byte> connectionMessage)
         {
-            var byteRear = new ByteReader(authPayload);
-            var password = byteRear.ReadString();
-
-            if (PASSWORD == password)
-            {
-                client.IsApproved = true;
-                OnAuthenticated?.Invoke(new AuthenticateResult(EConnectionResult.Success, "Success"), client);
-                return;
-            }
+            EConnectionResult connectionResult;
+            var message = string.Empty;
             
-            OnAuthenticated?.Invoke(new AuthenticateResult(EConnectionResult.Reject, "Wrong credentials"), client);
+            var byteRear = new ByteReader(connectionMessage);
+            var password = byteRear.ReadString().Trim();
+            Debug.Log($"password = {password}");
+            
+            if (serverPassword == password)
+            {
+                connectionResult = EConnectionResult.Success;
+            }
+            else
+            {
+                connectionResult = EConnectionResult.Reject;
+                message = "Wrong credentials";
+            }
+
+            OnAuthenticated?.Invoke(new AuthenticateResult(connectionResult, message), clientId);
+            
+            var authResult = new AuthenticateResult(connectionResult, message);
+            
+            return authResult;
         }
     }
 }

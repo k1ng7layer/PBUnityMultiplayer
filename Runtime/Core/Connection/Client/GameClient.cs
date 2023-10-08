@@ -1,15 +1,13 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
-using System.Threading;
-using System.Threading.Tasks;
-using Cysharp.Threading.Tasks;
+using System.Text;
+using PBUdpTransport;
 using PBUdpTransport.Utils;
-using PBUnityMultiplayer.Runtime.Configuration.Connection;
+using PBUnityMultiplayer.Runtime.Configuration.Client;
+using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
 using PBUnityMultiplayer.Runtime.Helpers;
-using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using UnityEngine;
@@ -18,44 +16,67 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 {
     public class GameClient : Peer, IDisposable
     {
-        private readonly INetworkConfiguration _networkConfiguration;
-        private readonly TransportBase _transportBase;
+        private readonly IClientConfiguration _clientConfiguration;
+        private readonly INetworkTransport _networkTransport;
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
-        private readonly ConcurrentQueue<OutcomePendingMessage> _sendMessagesQueue = new();
-        private readonly ConcurrentQueue<IncomePendingMessage> _receiveMessagesQueue = new();
-        private IPEndPoint _serverEndPoint;
-        private IPEndPoint _localEndPoint;
+        private readonly HashSet<NetworkClient> _clients = new();
+        private readonly NetworkMessageHandlersService _messageHandlersService = new();
+        private int _serverEndPointHash;
         private bool _isRunning;
-        private CancellationTokenSource _cancellationTokenSource;
         
         internal GameClient(
-            INetworkConfiguration networkConfiguration, 
-            TransportBase transportBase)
+            IClientConfiguration clientConfiguration, 
+            INetworkTransport networkTransport
+        )
         {
-            _networkConfiguration = networkConfiguration;
-            _transportBase = transportBase;
+            _clientConfiguration = clientConfiguration;
+            _networkTransport = networkTransport;
         }
         
         public IReadOnlyDictionary<int, NetworkClient> ConnectedPlayers => _networkClientsTable;
+        public IEnumerable<NetworkClient> Clients => _clients;
       
         public NetworkClient LocalClient { get; private set; }
-        public int Tick { get; private set; }
-
-        internal event Action LocalClientConnected;
-        internal event Action<string> LocalClientDisconnected;
-        internal event Action LocalClientReconnected;
+        public int CurrentTick { get; private set; }
         internal event Action<int> ClientConnected;
         internal event Action<int, string> ClientDisconnected;
-        internal event Action<int> ClientReconnected;
-        internal event Action<byte[]> SpawnReceived; 
-        internal event Action<byte[]> NetworkMessageReceived; 
-        internal event Action<byte[]> SpawnHandlerReceived; 
         internal event Action<EConnectionResult, string> LocalClientAuthenticated;
-        internal event Action<int> ClientLostConnection;
-        internal event Action ServerLostConnection;
 
         private DateTime _lastMessageReceivedFromServer;
+        
+        internal void Start()
+        {
+            if(_isRunning)
+              Stop();
+            
+            _isRunning = true;
+            
+            var serverIpResult = IPAddress.TryParse(_clientConfiguration.ServerIp, out var serverIp);
+            
+            if (!serverIpResult)
+                throw new Exception($"[{nameof(GameClient)}] invalid server ip address, check config");
 
+            var serverEndPoint = new IPEndPoint(serverIp, _clientConfiguration.ServerPort);
+            _serverEndPointHash = serverEndPoint.GetHashCode();
+            _networkTransport.StartTransport(serverEndPoint);
+            
+            _networkTransport.DataReceived += OnDataReceived;
+        }
+        
+        public void ConnectToServer(string password)
+        {
+            if (!_isRunning)
+                throw new Exception($"[{nameof(GameClient)}] must call StartClient first");
+            
+            var pwdBytes = Encoding.UTF8.GetBytes(password);
+            var writer = new ByteWriter(sizeof(ushort) + pwdBytes.Length);
+            
+            writer.AddUshort((ushort)ENetworkMessageType.ConnectionRequest);
+            writer.AddString(password);
+            
+            Send(writer.Data, ESendMode.Reliable);
+        }
+        
         public void SendMessage<T>(T message, ESendMode sendMode)
         {
             var payload = BinarySerializationHelper.Serialize(message);
@@ -71,248 +92,147 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             
             LocalClient.LastMessageSent = DateTime.Now;
             
-            Send(byteWriter.Data, _serverEndPoint, sendMode);
+            _networkTransport.Send(byteWriter.Data, _serverEndPointHash, sendMode);
         }
         
-        internal void Start()
+        public void Stop()
         {
-            _cancellationTokenSource = new CancellationTokenSource();
+            if (_isRunning && LocalClient != null && LocalClient.IsOnline)
+            {
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+                byteWriter.AddInt32(LocalClient.Id);
+                byteWriter.AddString("Manual quit");
             
-            var localIpResult = IPAddress.TryParse(_networkConfiguration.LocalIp, out var ip);
-
-            if (!localIpResult)
-                throw new Exception($"[{nameof(GameClient)}] invalid local ip address, check config");
+                Send(byteWriter.Data, ESendMode.Reliable);
+            }
             
-            if(_isRunning)
-                throw new Exception($"[{nameof(GameClient)}] can't start server when network manager already running ");
-            
-            _localEndPoint = new IPEndPoint(ip, _networkConfiguration.LocalPort);
-
-            var serverIpResult = IPAddress.TryParse(_networkConfiguration.ServerIp, out var serverIp);
-            
-            if (!serverIpResult)
-                throw new Exception($"[{nameof(GameClient)}] invalid server ip address, check config");
-
-            _serverEndPoint = new IPEndPoint(serverIp, _networkConfiguration.ServerPort);
-
-            _transportBase.StartTransport(_localEndPoint);
-
-            _isRunning = true;
-            
-            Task.Run(async () => await Receive(), _cancellationTokenSource.Token);
-            Task.Run(async () => await ProcessSendQueue(), _cancellationTokenSource.Token);
-        }
-
-        internal void Update()
-        {
-            Tick++;
-            ProcessReceiveQueue();
-            SendAliveCheck();
-        }
-
-        internal void Send(
-            byte[] data, 
-            ESendMode sendMode
-        )
-        {
-            LocalClient.LastMessageSent = DateTime.Now;
-            
-            var outcomeMessage = new OutcomePendingMessage(   data, _serverEndPoint, sendMode);
-            
-            _sendMessagesQueue.Enqueue(outcomeMessage);
-        }
-        
-        internal void Send(
-            byte[] data, 
-            IPEndPoint remoteEndPoint, 
-            ESendMode sendMode
-        )
-        {
-            var outcomeMessage = new OutcomePendingMessage(data, remoteEndPoint, sendMode);
-            
-            _sendMessagesQueue.Enqueue(outcomeMessage);
-        }
-
-        internal void Stop()
-        {
-            _cancellationTokenSource.Cancel();
             _isRunning = false;
-            _transportBase.Stop();
             _networkClientsTable.Clear();
-        }
-        
-        private async UniTask Receive()
-        {
-            while (_isRunning)
-            {
-                try
-                {
-                    var result = await _transportBase.ReceiveAsync();
-
-                    _lastMessageReceivedFromServer = DateTime.Now;
-                    
-                    var incomeMessage = new IncomePendingMessage(result.Payload, result.RemoteEndpoint);
-                
-                    _receiveMessagesQueue.Enqueue(incomeMessage);
-                }
-                catch (Exception e)
-                {
-                    //Debug.LogError(e);
-                }
-            }
-        }
-        
-        private void ProcessReceiveQueue()
-        {
-            while (_receiveMessagesQueue.Count > 0)
-            {
-                var canDequeue = _receiveMessagesQueue.TryDequeue(out var message);
-
-                if (canDequeue)
-                {
-                    HandleIncomeMessage(message);
-                }
-            }
+            _clients.Clear();
+            
+            LocalClient = null;
         }
 
-        private async UniTask ProcessSendQueue()
+        public void Tick()
         {
-            while (_isRunning)
-            {
-                while (_sendMessagesQueue.Count > 0)
-                {
-                    try
-                    {
-                        var canDequeue = _sendMessagesQueue.TryDequeue(out var message);
-                
-                        if (canDequeue)
-                        {
-                            //Debug.Log("BeginSent");
-                            await _transportBase.SendAsync(message.Payload, message.RemoteEndPoint, message.SendMode);
-                            //Debug.Log("Sent");
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError(e);
-                    }
-                }
-            }
+            if(!_isRunning)
+                return;
+            
+            CurrentTick++;
+            _networkTransport.Tick();
+        }
+
+        public void Send(
+            byte[] data, 
+            ESendMode sendMode
+        )
+        {
+            _networkTransport.Send(data, _serverEndPointHash, sendMode);
+        }
+
+        public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
+        {
+            _messageHandlersService.RegisterHandler(handler);
         }
         
-        private void HandleIncomeMessage(IncomePendingMessage incomePendingMessage)
+        public void UnregisterMessageHandler<T>(Action<T> handler) where T: struct
         {
-            var messageType = MessageHelper.GetMessageType(incomePendingMessage.Payload);
-            var messagePayload = incomePendingMessage.Payload;
+            _messageHandlersService.RegisterHandler(handler);
+        }
+        
+        private void OnDataReceived(EndPoint endPoint, ArraySegment<byte> data)
+        {
+            HandleIncomeMessage(data);
+        }
+        
+        private void HandleIncomeMessage(ArraySegment<byte> data)
+        {
+            var messageType = MessageHelper.GetMessageType(data);
+            
             switch (messageType)
             {
                 case ENetworkMessageType.ClientDisconnected:
-                    HandleClientDisconnected(messagePayload);
+                    HandleClientDisconnected(data);
                     break;
                 case ENetworkMessageType.ClientConnected:
-                    HandleNewConnection(messagePayload);
-                    break;
-                case ENetworkMessageType.ClientReconnected:
-                    HandleClientReconnected(messagePayload);
-                    break;
-                case ENetworkMessageType.Custom:
+                    HandleNewConnection(data);
                     break;
                 case ENetworkMessageType.AuthenticationResult:
-                    HandleConnectionAuthentication(messagePayload);
+                    HandleConnectionAuthentication(data);
                     break;
                 case ENetworkMessageType.NetworkMessage:
-                    HandleNetworkMessage(messagePayload);
-                    break;
-                case ENetworkMessageType.SpawnHandler:
-                    HandleSpawnHandlerMessage(messagePayload);
-                    break;
-                case ENetworkMessageType.Spawn:
-                    HandleSpawnMessage(messagePayload);
-                    break;
-                case ENetworkMessageType.ClientLostConnection:
-                    HandleClientLostConnection(messagePayload);
+                    HandleNetworkMessage(data);
                     break;
                 case ENetworkMessageType.ServerAliveCheck:
-                    HandleServerAliveCheck(messagePayload);
+                    HandleServerAliveCheck(data);
                     break;
                 case ENetworkMessageType.Sync:
-                    HandleSync(messagePayload);
+                    HandleSync(data);
                     break;
             }
         }
 
-        private void HandleSync(byte[] payload)
+        private void HandleSync(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(payload, 2);
+            var byteReader = new SegmentByteReader(data, 2);
             var serverTick = byteReader.ReadInt32();
-            if(Mathf.Abs(Tick - serverTick) >= _networkConfiguration.ClientTickRateDivergence)
-                Tick = serverTick;
+            if(Mathf.Abs(CurrentTick - serverTick) >= _clientConfiguration.ClientTickRateDivergence)
+                CurrentTick = serverTick;
         }
         
-        private void HandleServerAliveCheck(byte[] payload)
+        private void HandleServerAliveCheck(ArraySegment<byte> data)
         {
             _lastMessageReceivedFromServer = DateTime.Now;
         }
 
-        private void HandleClientLostConnection(byte[] payload)
+        private void HandleNetworkMessage(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(payload);
-            var clientId = byteReader.ReadInt32();
-            var hasClient = ConnectedPlayers.TryGetValue(clientId, out var client);
-            
-            if(!hasClient)
-                return;
+            var byteReader = new SegmentByteReader(data, 2);
+            var networkMessageId = byteReader.ReadString(out _);
+            var payloadLength = byteReader.ReadInt32();
+            var networkMessagePayload = byteReader.ReadBytes(payloadLength);
 
-            client.IsOnline = false;
-            
-            ClientLostConnection?.Invoke(clientId);
+            _messageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
         }
 
-        private void HandleSpawnMessage(byte[] payload)
+        private void HandleConnectionAuthentication(ArraySegment<byte> data)
         {
-            SpawnReceived?.Invoke(payload);
-        }
-
-        private void HandleSpawnHandlerMessage(byte[] payload)
-        {
-            SpawnHandlerReceived?.Invoke(payload);
-        }
-
-        private void HandleNetworkMessage(byte[] payload)
-        {
-            NetworkMessageReceived?.Invoke(payload);
-        }
-
-        private void HandleConnectionAuthentication(byte[] connPayload)
-        {
-            var byteReader = new ByteReader(connPayload, 2);
+            var byteReader = new SegmentByteReader(data, 2);
             var result = (EConnectionResult)byteReader.ReadUshort();
             var clientId = byteReader.ReadInt32();
-            var reason = byteReader.ReadString();
-            Debug.Log($"client HandleConnectionAuthentication");
+            var reason = byteReader.ReadString(out _);
 
             if (result == EConnectionResult.Success)
             {
-                
-                LocalClient = new NetworkClient(clientId, _localEndPoint);
+                var ipString = byteReader.ReadString(out _);
+                var port = byteReader.ReadInt32();
 
+                var ip = IPAddress.Parse(ipString);
+                var ipEndpoint = new IPEndPoint(ip, port);
+                
+                LocalClient = new NetworkClient(clientId, ipEndpoint);
+                LocalClient.IsOnline = true;
                 var byteWriter = new ByteWriter();
                 
                 byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
                 byteWriter.AddInt32(clientId);
                 
                 Send(byteWriter.Data, ESendMode.Reliable);
+                
+                _networkClientsTable.Add(clientId, LocalClient);
+                _clients.Add(LocalClient);
             }
            
             LocalClientAuthenticated?.Invoke(result, reason);
         }
 
-        private void HandleNewConnection(byte[] connectionPayload)
+        private void HandleNewConnection(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(connectionPayload, 2);
+            var byteReader = new SegmentByteReader(data, 2);
             var clientId = byteReader.ReadInt32();
             
-            var playerIpString = byteReader.ReadString(out _);
+            var playerIpString = byteReader.ReadString(out var strLength);
             var playerPort = byteReader.ReadInt32();
                     
             var parseResult = IPAddress.TryParse(playerIpString, out var ipResult);
@@ -325,92 +245,31 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             var networkClient = new NetworkClient(clientId, remoteEndpoint);
             
             _networkClientsTable.Add(clientId, networkClient);
-
-            if (Equals(remoteEndpoint, _localEndPoint))
-            {
-                //LocalClient = networkClient;
-                LocalClientConnected?.Invoke();
-            }
-            else
-            {
-                ClientConnected?.Invoke(clientId);
-            }
+            _clients.Add(networkClient);
+            
+            ClientConnected?.Invoke(clientId);
         }
 
-        private void HandleClientReconnected(byte[] connectionPayload)
+        private void HandleClientDisconnected(ArraySegment<byte> data)
         {
-            var byteReader = new ByteReader(connectionPayload);
+            var byteReader = new SegmentByteReader(data, 2);
             var clientId = byteReader.ReadInt32();
-
-            var hasClient = _networkClientsTable.TryGetValue(clientId, out var client);
-
-            if (hasClient)
-            {
-                if (client.Id == LocalClient.Id)
-                {
-                    LocalClientReconnected?.Invoke();
-                }
-                else
-                {
-                    ClientReconnected?.Invoke(clientId);
-                }
-            }
-        }
-
-        private void HandleClientDisconnected(byte[] connectionPayload)
-        {
-            var byteReader = new ByteReader(connectionPayload);
-            var clientId = byteReader.ReadInt32();
-            var reason = byteReader.ReadString();
+            var reason = byteReader.ReadString(out _);
 
             var hasPlayer = _networkClientsTable.TryGetValue(clientId, out var client);
 
             if (hasPlayer)
             {
-                if (clientId == LocalClient.Id)
-                {
-                    client.IsOnline = false;
-                    LocalClientDisconnected?.Invoke(reason);
-                }
-                else
-                {
-                    ClientDisconnected?.Invoke(clientId, reason);
-                    _networkClientsTable.Remove(clientId);
-                }
-            }
-        }
-
-        private void SendAliveCheck()
-        {
-            if(!_isRunning || LocalClient == null)
-                return;
-            
-            var clientCheckAliveTime = _networkConfiguration.ClientCheckAliveTime;
-            var serverCheckAliveTime = _networkConfiguration.ServerCheckAliveTimeOut;
-
-            if ((DateTime.Now - LocalClient.LastMessageSent).TotalMilliseconds >= clientCheckAliveTime)
-            {
-                var byteWriter = new ByteWriter();
-                byteWriter.AddUshort((ushort)ENetworkMessageType.ClientAliveCheck);
-                byteWriter.AddInt32(LocalClient.Id);
-                
-                LocalClient.LastMessageSent = DateTime.Now;
-                Debug.Log($"client SendAliveCheck");
-                Send(byteWriter.Data, ESendMode.Reliable);
-            }
-
-            if ((DateTime.Now - _lastMessageReceivedFromServer).TotalMilliseconds >= serverCheckAliveTime)
-            {
-                ServerLostConnection?.Invoke();
-                Debug.Log($"ServerLostConnection");
-                Stop();
+                ClientDisconnected?.Invoke(clientId, reason);
+                _networkClientsTable.Remove(clientId);
+                _clients.Remove(client);
             }
         }
 
         public void Dispose()
         {
-            _transportBase.Dispose();
-            _cancellationTokenSource?.Dispose();
+            _networkTransport.DataReceived -= OnDataReceived;
+            _networkTransport.Stop();
         }
     }
 }

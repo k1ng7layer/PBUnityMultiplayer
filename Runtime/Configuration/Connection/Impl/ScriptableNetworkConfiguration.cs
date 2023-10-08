@@ -40,7 +40,7 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Connection.Impl
 
         public int ServerCheckAliveTimeOut => serverCheckAliveTime;
 
-        public int ServerCheckAliveTimeSent => serverCheckAliveTimeSent = 2000;
+        public int ServerCheckAliveTimeSent => serverCheckAliveTimeSent;
 
         public int MaxClients => maxClients;
 

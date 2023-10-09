@@ -105,21 +105,27 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 
         private void OnDestroy()
         {
-            _server.ClientDisconnected -= OnClientDisconnected;
-            _server.ClientConnected -= OnClientReady;
-            _server.ConnectionApproveCallback -= OnClientConnected;
+            if (_server != null)
+            {
+                _server.ClientDisconnected -= OnClientDisconnected;
+                _server.ClientConnected -= OnClientReady;
+                _server.ConnectionApproveCallback -= OnClientConnected;
+            }
             
-            _server.Stop();
-            _server.Dispose();
+            _server?.Stop();
+            _server?.Dispose();
         }
         private void OnDisable()
         {
-            _server.ClientDisconnected -= OnClientDisconnected;
-            _server.ClientConnected -= OnClientReady;
-            _server.ConnectionApproveCallback -= OnClientConnected;
+            if (_server != null)
+            {
+                _server.ClientDisconnected -= OnClientDisconnected;
+                _server.ClientConnected -= OnClientReady;
+                _server.ConnectionApproveCallback -= OnClientConnected;
+            }
             
-            _server.Stop();
-            _server.Dispose();
+            _server?.Stop();
+            _server?.Dispose();
         }
     }
 }

@@ -54,7 +54,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
 
         public override void Stop()
         {
-            _kcpClient.Disconnect();
+            _kcpClient?.Disconnect();
             _running = false;
         }
 

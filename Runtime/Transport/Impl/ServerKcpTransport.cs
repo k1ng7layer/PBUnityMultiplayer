@@ -71,7 +71,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
         public override void Stop()
         {
             _running = false;
-            _server.Stop();
+            _server?.Stop();
         }
     }
 }

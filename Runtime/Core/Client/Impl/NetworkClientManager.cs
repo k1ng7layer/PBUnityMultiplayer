@@ -101,21 +101,28 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
 
         private void OnDestroy()
         {
-            _client.Stop();
-            _client.ClientConnected -= OnClientConnected;
-            _client.ClientDisconnected -= OnClientDisconnected;
-            _client.LocalClientAuthenticated -= OnClientAuthenticated;
-            _client.Dispose();
-            
+            if (_client != null)
+            {
+                _client.ClientConnected -= OnClientConnected;
+                _client.ClientDisconnected -= OnClientDisconnected;
+                _client.LocalClientAuthenticated -= OnClientAuthenticated;
+            }
+          
+            _client?.Stop();
+            _client?.Dispose();
         }
         
         private void OnDisable()
         {
-            _client.Stop();
-            _client.ClientConnected -= OnClientConnected;
-            _client.ClientDisconnected -= OnClientDisconnected;
-            _client.LocalClientAuthenticated -= OnClientAuthenticated;
-            _client.Dispose();
+            if (_client != null)
+            {
+                _client.ClientConnected -= OnClientConnected;
+                _client.ClientDisconnected -= OnClientDisconnected;
+                _client.LocalClientAuthenticated -= OnClientAuthenticated;
+            }
+          
+            _client?.Stop();
+            _client?.Dispose();
         }
     }
 }

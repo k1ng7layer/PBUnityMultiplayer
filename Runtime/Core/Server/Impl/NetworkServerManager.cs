@@ -11,7 +11,6 @@ using PBUnityMultiplayer.Runtime.Transport;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator.Impl;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
 {
@@ -37,10 +36,13 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         public event Action<int> ClientConnected;
         public IServerConfiguration Configuration => networkConfiguration;
 
-        public void StartServer()
+        private void Start()
         {
             _server = new GameServer(transportBase, networkConfiguration, new NetworkObjectIdGenerator());
-            
+        }
+
+        public void StartServer()
+        {
             _server.ClientDisconnected += OnClientDisconnected;
             _server.ClientConnected += OnClientReady;
             _server.ConnectionApproveCallback += OnClientConnected;

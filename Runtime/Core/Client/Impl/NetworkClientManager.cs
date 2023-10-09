@@ -29,13 +29,18 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         public int Tick => _client.CurrentTick;
         public NetworkClient LocalClient => _client.LocalClient;
 
+        private void Start()
+        {
+            _client = new GameClient(clientConfiguration, transportBase);
+        }
+
         public void StartClient()
         {
             if(_isRunning)
                 StopClient();
             
             _isRunning = true;
-            _client = new GameClient(clientConfiguration, transportBase);
+         
             _client.ClientConnected += OnClientConnected;
             _client.ClientDisconnected += OnClientDisconnected;
             _client.LocalClientAuthenticated += OnClientAuthenticated;

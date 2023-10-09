@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Net;
 using kcp2k;
-using PBUdpTransport;
 using PBUdpTransport.Utils;
 using UnityEngine;
 
@@ -20,16 +19,16 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
         }
     }
     
-    public class ClientKcpTransport : MonoBehaviour, INetworkTransport
+    public class ClientKcpTransport : TransportBase
     {
         private IPEndPoint _serverEndPoint;
         private KcpClient _kcpClient;
         private bool _running;
         private readonly Queue<DelayedSend> _delayedSends = new();
         
-        public event Action<EndPoint, ArraySegment<byte>> DataReceived;
+        public override event Action<EndPoint, ArraySegment<byte>> DataReceived;
         
-        public void StartTransport(IPEndPoint localEndPoint)
+        public override void StartTransport(IPEndPoint localEndPoint)
         {
             _serverEndPoint = localEndPoint;
             
@@ -40,7 +39,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
         }
         
 
-        public void Send(byte[] data, int connectionHash, ESendMode sendMode)
+        public override void Send(byte[] data, int connectionHash, ESendMode sendMode)
         {
             var channel = GetChannel(sendMode);
 
@@ -53,7 +52,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
             _kcpClient.Send(data, channel);
         }
 
-        public void Stop()
+        public override void Stop()
         {
             _kcpClient.Disconnect();
             _running = false;
@@ -99,7 +98,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
             }
         }
 
-        public void Tick()
+        public override void Tick()
         {
             if(!_running)
                 return;

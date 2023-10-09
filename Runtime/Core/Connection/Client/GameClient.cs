@@ -170,7 +170,15 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 case ENetworkMessageType.Sync:
                     HandleSync(data);
                     break;
+                case ENetworkMessageType.Ping:
+                    HandlePing(data);
+                    break;
             }
+        }
+
+        private void HandlePing(ArraySegment<byte> data)
+        {
+            _lastMessageReceivedFromServer = DateTime.Now;
         }
 
         private void HandleSync(ArraySegment<byte> data)

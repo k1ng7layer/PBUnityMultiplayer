@@ -4,6 +4,5 @@
     {
         Success,
         Reject,
-        TimeOut,
     }
 }

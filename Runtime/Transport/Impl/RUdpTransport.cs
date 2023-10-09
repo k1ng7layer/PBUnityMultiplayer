@@ -1,47 +1,35 @@
 using System;
 using System.Net;
-using Cysharp.Threading.Tasks;
 using PBUdpTransport;
-using PBUdpTransport.Models;
 using PBUdpTransport.Utils;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Transport.Impl
 {
-    public class RUdpTransport : TransportBase
+    public class RUdpTransport : MonoBehaviour, INetworkTransport
     {
         private UdpTransport _udpTransport;
 
-        protected internal override void StartTransport(IPEndPoint localEndPoint)
+
+        public event Action<EndPoint, ArraySegment<byte>> DataReceived;
+        public void StartTransport(IPEndPoint localEndPoint)
         {
-            _udpTransport = new UdpTransport(localEndPoint);
-            _udpTransport.Start();
+            throw new NotImplementedException();
         }
 
-        protected internal override void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
+        public void Send(byte[] data, int connectionHash, ESendMode sendMode)
         {
-            _udpTransport.Send(data, remoteEndpoint, sendMode);
+            throw new NotImplementedException();
         }
 
-        protected internal override async UniTask SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
+        public void Tick()
         {
-            await _udpTransport.SendAsync(data, remoteEndpoint, sendMode);
+            throw new NotImplementedException();
         }
 
-        protected internal override async UniTask<TransportMessage> ReceiveAsync()
+        public void Stop()
         {
-            var data = await _udpTransport.ReceiveAsync();
-
-            return data;
-        }
-
-        protected internal override void Stop()
-        {
-            _udpTransport.Stop();
-        }
-
-        protected override void OnDispose()
-        {
-            _udpTransport?.Dispose();
+            throw new NotImplementedException();
         }
     }
 }

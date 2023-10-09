@@ -14,6 +14,11 @@ namespace PBUnityMultiplayer.Runtime.Helpers
         {
             Data = data;
         }
+
+        public ByteReader(ArraySegment<byte> bytes)
+        {
+            Data = bytes.Slice(0, bytes.Count).ToArray();
+        }
         
         public ByteReader(byte[] data, int startOffset)
         {

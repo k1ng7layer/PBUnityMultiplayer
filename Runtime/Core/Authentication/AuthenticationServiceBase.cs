@@ -1,11 +1,11 @@
 ﻿using System;
-using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
+using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Authentication
 {
-    public abstract class AuthenticationServiceBase
+    public abstract class AuthenticationServiceBase : MonoBehaviour
     {
-        public Action<AuthenticateResult, NetworkClient> OnAuthenticated;
-        public abstract void Authenticate(NetworkClient client, byte[] authPayload);
+        public Action<AuthenticateResult, int> OnAuthenticated;
+        public abstract AuthenticateResult Authenticate(int clientId, ArraySegment<byte> connectionMessage);
     }
 }

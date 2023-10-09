@@ -1,15 +1,16 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
 
 namespace PBUnityMultiplayer.Runtime.Core.NetworkManager.Models
 {
     public struct IncomePendingMessage
     {
-        public readonly byte[] Payload;
-        public readonly IPEndPoint RemoteEndPoint;
+        public readonly  ArraySegment<byte> Payload;
+        public readonly EndPoint RemoteEndPoint;
 
         public IncomePendingMessage(
-            byte[] payload, 
-            IPEndPoint remoteEndPoint)
+            ArraySegment<byte> payload, 
+            EndPoint remoteEndPoint)
         {
             Payload = payload;
             RemoteEndPoint = remoteEndPoint;

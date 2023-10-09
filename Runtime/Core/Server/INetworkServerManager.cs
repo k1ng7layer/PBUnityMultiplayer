@@ -9,6 +9,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
     {
         int Tick { get; }
         IReadOnlyDictionary<int, NetworkClient> ConnectedClients { get; }
+        IEnumerable<NetworkClient> Clients { get; }
         event Action ClientConnectedToServer;
         event Action<NetworkClient> SeverAuthenticated;
         event Action<int> ClientReady;

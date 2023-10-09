@@ -9,9 +9,11 @@ namespace PBUnityMultiplayer.Runtime.Configuration.Client.Impl
         [SerializeField] private string serverIp;
         [SerializeField] private ushort serverPort;
         [SerializeField] private int clientTickRateDivergence;
+        [SerializeField] private double clientPingSendRateMilliseconds;
 
         public string ServerIp => serverIp;
         public ushort ServerPort => serverPort;
         public int ClientTickRateDivergence => clientTickRateDivergence;
+        public double ClientPingSendRateMilliseconds => clientPingSendRateMilliseconds;
     }
 }

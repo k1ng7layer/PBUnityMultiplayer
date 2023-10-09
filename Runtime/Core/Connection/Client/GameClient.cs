@@ -43,6 +43,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         internal event Action<EConnectionResult, string> LocalClientAuthenticated;
 
         private DateTime _lastMessageReceivedFromServer;
+        private DateTime _lastMessageSendServerTime;
         
         internal void Start()
         {
@@ -120,7 +121,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
                 return;
             
             CurrentTick++;
+            
             _networkTransport.Tick();
+            
+            if(LocalClient != null && LocalClient.IsOnline)
+                SendPing();
         }
 
         public void Send(
@@ -179,6 +184,22 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         private void HandlePing(ArraySegment<byte> data)
         {
             _lastMessageReceivedFromServer = DateTime.Now;
+        }
+
+        private void SendPing()
+        {
+            var diff = (DateTime.Now - _lastMessageSendServerTime).TotalMilliseconds;
+
+            if (diff >= _clientConfiguration.ClientPingSendRateMilliseconds)
+            {
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)ENetworkMessageType.Ping);
+                byteWriter.AddInt32(LocalClient.Id);
+            
+                Send(byteWriter.Data, ESendMode.Reliable);
+
+                _lastMessageSendServerTime = DateTime.Now;
+            }
         }
 
         private void HandleSync(ArraySegment<byte> data)

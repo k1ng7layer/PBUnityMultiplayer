@@ -15,3 +15,4 @@ MonoBehaviour:
   serverIp: 127.0.0.1
   serverPort: 5555
   clientTickRateDivergence: 3
+  clientPingSendRateMilliseconds: 2000

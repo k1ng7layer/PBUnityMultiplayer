@@ -44,6 +44,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         public event Action<int> ClientReconnected;
         
         public Func<int, ArraySegment<byte>, AuthenticateResult> ConnectionApproveCallback;
+        private DateTime _lastPingMessageSendTime;
         internal event Action<int> ClientConnected;
 
         public void StartServer()
@@ -118,6 +119,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             _networkTransport.Tick();
             
             ProcessTimeOuts();
+            SendPing();
         }
 
         public void Disconnect(int clientId)
@@ -182,6 +184,21 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                 case ENetworkMessageType.Ping:
                     HandlePing(data);
                     break;
+            }
+        }
+        
+        private void SendPing()
+        {
+            var diff = (DateTime.Now - _lastPingMessageSendTime).TotalMilliseconds;
+
+            if (diff >= _serverConfiguration.ServerPingTimeMilliseconds)
+            {
+                var byteWriter = new ByteWriter();
+                byteWriter.AddUshort((ushort)ENetworkMessageType.Ping);
+            
+                SendMessage(byteWriter.Data, ESendMode.Reliable);
+
+                _lastPingMessageSendTime = DateTime.Now;
             }
         }
 

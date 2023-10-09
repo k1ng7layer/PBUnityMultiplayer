@@ -5,5 +5,6 @@
         string ServerIp { get; }
         ushort ServerPort { get; }
         int ClientTickRateDivergence { get; }
+        double ClientPingSendRateMilliseconds { get; }
     }
 }

@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: DefaultClientConfiguration
   m_EditorClassIdentifier: 
   serverIp: 127.0.0.1
-  serverPort: 0
+  serverPort: 5555
   clientTickRateDivergence: 3

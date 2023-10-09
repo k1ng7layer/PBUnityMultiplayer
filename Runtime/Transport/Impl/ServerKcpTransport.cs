@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Net;
 using kcp2k;
 using PBUdpTransport.Utils;
-using PBUnityMultiplayer.Runtime.Configuration.Connection.Impl;
 using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Transport.Impl
 {                   
     public class ServerKcpTransport : TransportBase
     {
-        [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
         private readonly Dictionary<int, IPEndPoint> _connectionIdMap = new();
         
         private KcpServer _server;
@@ -21,7 +19,7 @@ namespace PBUnityMultiplayer.Runtime.Transport.Impl
         public override void StartTransport(IPEndPoint localEndPoint)
         {
             _server = new KcpServer(OnConnected, OnData, OnDisconnected, OnError, new KcpConfig());
-            _server.Start((ushort)networkConfiguration.ServerPort);
+            _server.Start((ushort)localEndPoint.Port);
             _running = true;
         }
         

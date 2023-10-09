@@ -1,24 +1,14 @@
 using System;
 using System.Collections.Generic;
 using PBUdpTransport.Utils;
-using PBUnityMultiplayer.Runtime.Configuration.Connection.Impl;
 using PBUnityMultiplayer.Runtime.Configuration.Prefabs.Impl;
+using PBUnityMultiplayer.Runtime.Configuration.Server;
+using PBUnityMultiplayer.Runtime.Configuration.Server.Impl;
 using PBUnityMultiplayer.Runtime.Core.Authentication;
-using PBUnityMultiplayer.Runtime.Core.Authentication.Impl;
 using PBUnityMultiplayer.Runtime.Core.Connection.Server;
-using PBUnityMultiplayer.Runtime.Core.MessageHandling;
-using PBUnityMultiplayer.Runtime.Core.MessageHandling.Impl;
 using PBUnityMultiplayer.Runtime.Core.NetworkManager.Models;
-using PBUnityMultiplayer.Runtime.Core.NetworkObjects;
-using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers;
-using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnHandlers.Impl;
-using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService;
-using PBUnityMultiplayer.Runtime.Core.Spawn.SpawnService.Impl;
-using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport;
-using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
-using PBUnityMultiplayer.Runtime.Utils.IdGenerator;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator.Impl;
 using UnityEngine;
 
@@ -27,319 +17,115 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
     public class NetworkServerManager : MonoBehaviour, 
         INetworkServerManager
     {
-        [SerializeField] private ScriptableNetworkConfiguration networkConfiguration;
+        [SerializeField] private DefaultServerConfiguration networkConfiguration;
         [SerializeField] private NetworkPrefabsBase networkPrefabsBase;
         [SerializeField] private bool useAuthentication;
         [SerializeField] private TransportBase transportBase;
-        
-        private INetworkSpawnService _networkSpawnService;
-        private IIdGenerator<ushort> _networkObjectIdGenerator;
-        private INetworkSpawnHandlerService _networkSpawnHandlerService;
-        private IMessageHandlersService _messageHandlersService;
-        
-        private AuthenticationServiceBase _serverAuthentication;
+        [SerializeField] private AuthenticationServiceBase serverAuthentication;
+
         private GameServer _server;
-
-        public AuthenticationServiceBase AuthenticationServiceBase
-        {
-            get
-            {
-                if (_serverAuthentication == null)
-                    _serverAuthentication = new ServerAuthentication();
-
-                return _serverAuthentication;
-            }
-            set => _serverAuthentication = value;
-        }
-
-        public int Tick => _server.ServerTick;
-        public IReadOnlyDictionary<int, NetworkClient> ConnectedClients => _server.ConnectedPlayers;
+        private bool _running;
+        
+        public IReadOnlyDictionary<int, NetworkClient> ConnectedClients => _server.ClientsTable;
+        public IEnumerable<NetworkClient> Clients => _server.Clients;
+        public int Tick => _server.CurrentTick;
         public event Action ClientConnectedToServer;
         public event Action<NetworkClient> SeverAuthenticated;
-        public event Action<NetworkClient> ClientReadyToWork;
-        public event Action<int, string> SeverClientDisconnected;
-        public event Action<int> SeverClientConnected;
-        public event Action<int> ClientLostConnection;
+        public event Action<int> ClientReady;
+        public event Action<int> ClientDisconnected;
+        public event Action<int> ClientConnected;
+        public IServerConfiguration Configuration => networkConfiguration;
 
-        private void Awake()
+        private void Start()
         {
-            _networkObjectIdGenerator = new NetworkObjectIdGenerator();
-            _networkSpawnService = new NetworkSpawnService(networkPrefabsBase);
-            _messageHandlersService = new NetworkMessageHandlersService();
-            _networkSpawnHandlerService = new NetworkSpawnHandlerService();
+            _server = new GameServer(transportBase, networkConfiguration, new NetworkObjectIdGenerator());
         }
 
         public void StartServer()
         {
-            _server = new GameServer(networkConfiguration, transportBase);
-            
-            _server.ClientConnected += ServerHandleNewConnection;
-            _server.SpawnHandlerReceived += HandleSpawnHandler;
-            _server.SpawnReceived += HandleSpawn;
-            _server.NetworkMessageReceived += HandleNetworkMessage;
-            _server.ClientLostConnection += OnClientLostConnection;
             _server.ClientDisconnected += OnClientDisconnected;
-            _server.ClientReady += OnClientReady;
+            _server.ClientConnected += OnClientReady;
+            _server.ConnectionApproveCallback += OnClientConnected;
             
-            AuthenticationServiceBase.OnAuthenticated += OnServerAuthenticated;
+            _server.StartServer();
             
-            _server.Start();
+            _running = true;
         }
 
-        public void StopServer()
+        public void StopServer() 
         {
-            _server.ClientConnected -= ServerHandleNewConnection;
-            _server.SpawnHandlerReceived -= HandleSpawnHandler;
-            _server.SpawnReceived -= HandleSpawn;
-            _server.SpawnReceived -= HandleNetworkMessage;
-            _server.ClientReady -= OnClientReady;
-            
-            AuthenticationServiceBase.OnAuthenticated -= OnServerAuthenticated;
+            _running = false;
             
             _server.Stop();
         }
 
-        public NetworkObject Spawn<T>(int prefabId, 
-            NetworkClient owner, 
-            Vector3 position, 
-            Quaternion rotation, 
-            T message) where T : struct
+        public void SendMessage<T>(int networkClientId, T message, ESendMode sendMode) where T : struct
         {
-            var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
-            var objectId = _networkObjectIdGenerator.Next();
-            spawnedObject.Spawn(objectId, owner.Id, false);
-            owner.AddOwnership(spawnedObject);
-
-            var handlerId = typeof(T).FullName;
-
-            // if (!hasHandler)
-            //     throw new Exception($"[{nameof(NetworkServerManager)}] can't process unregister handler");
-
-            var messageBytes = BinarySerializationHelper.Serialize(message);
-            var byteWriter = new ByteWriter();
-            
-           // _networkSpawnHandlerService.CallHandler(handlerId, messageBytes, spawnedObject);
-            
-            byteWriter.AddUshort((ushort)ENetworkMessageType.SpawnHandler);
-            byteWriter.AddInt32(owner.Id);
-            byteWriter.AddInt32(prefabId);
-            byteWriter.AddVector3(position);
-            byteWriter.AddQuaternion(rotation);
-            byteWriter.AddString(handlerId);
-            byteWriter.AddInt32(messageBytes.Length);
-            byteWriter.AddBytes(messageBytes);
-            byteWriter.AddUshort(objectId);
-            Debug.Log($"client Spawn, id = {objectId}");
-            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
-
-            return spawnedObject;
+            _server.SendMessage(networkClientId, message, sendMode);
         }
 
-        public NetworkObject Spawn(int prefabId, 
-            NetworkClient owner, 
-            Vector3 position, 
-            Quaternion rotation)
+        public void SendMessage<T>(T message, ESendMode sendMode) where T : struct
         {
-            var spawnedObject = _networkSpawnService.Spawn(prefabId, position, rotation);
-            var id = _networkObjectIdGenerator.Next();
-            spawnedObject.Spawn(id, owner.Id, false);
-            owner.AddOwnership(spawnedObject);
-
-            var byteWriter = new ByteWriter();
-            
-            byteWriter.AddUshort((ushort)ENetworkMessageType.Spawn);
-            byteWriter.AddInt32(owner.Id);
-            byteWriter.AddInt32(prefabId);
-            byteWriter.AddVector3(position);
-            byteWriter.AddQuaternion(rotation);
-            byteWriter.AddUshort(id);
-
-            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
-            
-            return spawnedObject;
-        }
-
-        public void SendMessage<T>(T message, int networkClientId) where T : struct
-        {
-            _server.SendMessage<T>(message, networkClientId, ESendMode.Reliable);
-        }
-
-        public void SendMessage<T>(T message) where T : struct
-        {
-            foreach (var connectedClient in ConnectedClients)
+            foreach (var connectedClient in _server.Clients)
             {
-                _server.SendMessage<T>(message, connectedClient.Value.Id, ESendMode.Reliable);
+                _server.SendMessage(connectedClient.Id, message, sendMode);
             }
         }
 
         public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
         {
-            _messageHandlersService.RegisterHandler(handler);
+            _server.RegisterMessageHandler(handler);
         }
 
-        public void RegisterSpawnHandler<T>(NetworkSpawnHandler<T> handler) where T: struct
+        private AuthenticateResult OnClientConnected(int clientId, ArraySegment<byte> connectionMessage)
         {
-            _networkSpawnHandlerService.RegisterHandler(handler);
-        }
-
-        private void OnClientReady(NetworkClient networkClient)
-        {
-            ClientReadyToWork?.Invoke(networkClient);
-        }
-        
-        private void ServerHandleNewConnection(NetworkClient networkClient, byte[] payload)
-        {
-            SeverClientConnected?.Invoke(networkClient.Id);
-
             if (useAuthentication)
-            {
-                Debug.Log($"Authenticate start");
-                AuthenticationServiceBase.Authenticate(networkClient, payload);
-            }
-            else
-            {
-                SeverAuthenticated?.Invoke(networkClient);
-            }
-        }
-        
-        private void OnServerAuthenticated(AuthenticateResult authenticateResult, NetworkClient client)
-        {
-            //TODO: send message to all clients
-            var result = authenticateResult.ConnectionResult;
-            var byteWriter = new ByteWriter();
-
-            byteWriter.AddUshort((ushort)ENetworkMessageType.AuthenticationResult);
-            byteWriter.AddUshort((ushort)result);
-            byteWriter.AddInt32(client.Id);
-            byteWriter.AddString(authenticateResult.Message);
-            client.LastMessageReceived = DateTime.Now;
-            Debug.Log($"OnServerAuthenticated = {result}");
-            switch (result)
-            {
-                case EConnectionResult.Success:
-                    client.IsApproved = true;
-                    break;
-                case EConnectionResult.Reject:
-                case EConnectionResult.TimeOut:
-                    SeverClientDisconnected?.Invoke(client.Id, "Timeout");
-                    _server.DisconnectPendingClient(client.Id, authenticateResult.Message);
-                    break;
-            }
-            _server.Send(byteWriter.Data, client, ESendMode.Reliable);
+                return serverAuthentication.Authenticate(clientId, connectionMessage);
             
-            SeverAuthenticated?.Invoke(client);
-        }
-        
-        private void HandleSpawnHandler(byte[] payload)
-        {
-            var byteReader = new ByteReader(payload, 2);
-            
-            var clientId = byteReader.ReadInt32();
-            var prefabId = byteReader.ReadInt32();
-            var position = byteReader.ReadVector3();
-            var rotation = byteReader.ReadQuaternion();
-            var handlerId = byteReader.ReadString();
-            var payloadSize = byteReader.ReadInt32();
-            var messagePayload = byteReader.ReadBytes(payloadSize);
-
-            var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
-            var hasClient = _server.ConnectedPlayers.TryGetValue(clientId, out var client);
-            
-            //TODO:
-            if(!hasClient)
-                return;
-
-            client.LastMessageReceived = DateTime.Now;
-            
-            var objectId = _networkObjectIdGenerator.Next();
-            
-            networkObject.Spawn(objectId, clientId, false);
-            client.AddOwnership(networkObject);
-            
-            _networkSpawnHandlerService.CallHandler(handlerId, messagePayload, networkObject);
-
-            var byteWriter = new ByteWriter();
-            
-            // byteWriter.AddBytes(byteReader.Data);
-            // byteWriter.AddUshort(objectId);
-            
-            byteWriter.AddUshort((ushort)(ENetworkMessageType.SpawnHandler));
-            byteWriter.AddInt32(clientId);
-            byteWriter.AddInt32(prefabId);
-            byteWriter.AddVector3(position);
-            byteWriter.AddQuaternion(rotation);
-            byteWriter.AddString(handlerId);
-            byteWriter.AddInt32(payloadSize);
-            byteWriter.AddBytes(messagePayload);
-            byteWriter.AddUshort(objectId);
-            Debug.Log($"server HandleSpawnHandlerMessage, id = {objectId}, data count = {byteWriter.Data.Length}");
-            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
-        }
-        
-        private void HandleSpawn(byte[] payload)
-        {
-            var byteReader = new ByteReader(payload, 2);
-            var clientId = byteReader.ReadInt32();
-            var prefabId = byteReader.ReadInt32();
-            var position = byteReader.ReadVector3();
-            var rotation = byteReader.ReadQuaternion();
-            var networkObject = _networkSpawnService.Spawn(prefabId, position, rotation);
-            var hasClient = _server.ConnectedPlayers.TryGetValue(clientId, out var client);
-            
-            if(!hasClient)
-                return;
-            
-            if(!client.IsApproved)
-                return;
-            
-            client.LastMessageReceived = DateTime.Now;
-            var objectId = _networkObjectIdGenerator.Next();
-            
-            networkObject.Spawn(objectId, clientId, false);
-            client.AddOwnership(networkObject);
-
-            var byteWriter = new ByteWriter();
-            byteWriter.AddBytes(payload);
-            byteWriter.AddUshort(objectId);
-            
-            _server.SendToAllApprovedClients(byteWriter.Data, ESendMode.Reliable);
-        }
-        
-        private void HandleNetworkMessage(byte[] payload)
-        {
-            var byteReader = new ByteReader(payload, 6);
-            var networkMessageId = byteReader.ReadString();
-            var payloadLength = byteReader.ReadInt32();
-            var networkMessagePayload = byteReader.ReadBytes(payloadLength);
-
-            _messageHandlersService.CallHandler(networkMessageId, networkMessagePayload);
+            return new AuthenticateResult(EConnectionResult.Success, "");
         }
 
-        private void OnClientLostConnection(int id)
+        private void OnClientReady(int  id)
         {
-            ClientLostConnection?.Invoke(id);
+            ClientReady?.Invoke(id);
         }
 
-        private void OnClientDisconnected(int id, string reason)
+        private void OnClientDisconnected(int id)
         {
-            SeverClientDisconnected?.Invoke(id, reason);
+            ClientDisconnected?.Invoke(id);
         }
         
         private void FixedUpdate()
         {
-            _server?.Update();
+            if(!_running)
+                return;
+            
+            _server?.Tick();
         }
 
         private void OnDestroy()
         {
-            _server.Stop();
-            _server.Dispose();
+            if (_server != null)
+            {
+                _server.ClientDisconnected -= OnClientDisconnected;
+                _server.ClientConnected -= OnClientReady;
+                _server.ConnectionApproveCallback -= OnClientConnected;
+            }
+            
+            _server?.Stop();
+            _server?.Dispose();
         }
         private void OnDisable()
         {
-            _server.Stop();
-            _server.Dispose();
+            if (_server != null)
+            {
+                _server.ClientDisconnected -= OnClientDisconnected;
+                _server.ClientConnected -= OnClientReady;
+                _server.ConnectionApproveCallback -= OnClientConnected;
+            }
+            
+            _server?.Stop();
+            _server?.Dispose();
         }
-        
     }
 }

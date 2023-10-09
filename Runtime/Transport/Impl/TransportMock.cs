@@ -1,45 +1,62 @@
 using System;
+using System.Collections.Generic;
 using System.Net;
-using Cysharp.Threading.Tasks;
 using PBUdpTransport.Models;
 using PBUdpTransport.Utils;
-using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
-using PBUnityMultiplayer.Runtime.Utils;
 
 namespace PBUnityMultiplayer.Runtime.Transport.Impl
 {
+    public readonly struct TestMessage
+    {
+        public readonly IPEndPoint RemoteEp;
+        public readonly ArraySegment<byte> Message;
+        
+        public TestMessage(IPEndPoint remoteEp, ArraySegment<byte> msg)
+        {
+            RemoteEp = remoteEp;
+            Message = msg;
+        }
+    }
+    
     public class TransportMock : TransportBase
     {
         private TransportMessage _transportMessage;
-        protected internal override void StartTransport(IPEndPoint localEndPoint)
+        private readonly Queue<TestMessage> _messages = new();
+        private bool _running;
+        
+        public void ProcessMessage(TestMessage message)
+        {
+            _messages.Enqueue(message);
+        }
+
+        public override event Action<EndPoint, ArraySegment<byte>> DataReceived;
+
+        public override void StartTransport(IPEndPoint localEndPoint)
+        {
+            _running = true;
+        }
+
+        public override void Send(byte[] data, int connectionHash, ESendMode sendMode)
         {
             
         }
 
-        protected internal override void Send(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
+        public override void Tick()
         {
-            throw new System.NotImplementedException();
+            if(!_running)
+                return;
+            
+            if (_messages.Count > 0)
+            {
+                var msg = _messages.Dequeue();
+                
+                DataReceived?.Invoke(msg.RemoteEp, msg.Message);
+            }
         }
 
-        protected internal override UniTask SendAsync(byte[] data, IPEndPoint remoteEndpoint, ESendMode sendMode)
+        public override void Stop()
         {
-            return UniTask.CompletedTask;
-        }
-
-        protected internal override async UniTask<TransportMessage> ReceiveAsync()
-        {
-            await UniTask.Delay(1000);
-            return await UniTask.FromResult(_transportMessage);
-        }
-
-        protected internal override void Stop()
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void AddIncomeMessageToReturn(TransportMessage transportMessage)
-        {
-            _transportMessage = transportMessage;
+            _running = false;
         }
     }
 }

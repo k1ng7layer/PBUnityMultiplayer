@@ -1,24 +1,25 @@
 using System.Collections;
+using System.Linq;
 using System.Net;
 using NUnit.Framework;
-using PBUdpTransport.Models;
 using PBUnityMultiplayer.Runtime.Core.Server.Impl;
 using PBUnityMultiplayer.Runtime.Transport.Impl;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
+using PBUnityMultiplayer.Tests.Runtime.TestUtils;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.TestRunner;
 using UnityEngine.TestTools;
 
 namespace PBUnityMultiplayer.Tests.Runtime.Server
 {
-    public class ServerClientConnectedTest
+    
+    public class ServerConnectionTest
     {
         private const string Scene = "ServerClientConnectTest";
         
         [UnityTest]
-        public IEnumerator NewClientConnectedTest()
+        public IEnumerator NewClientConnectedWithPasswordTest()
         {
             SceneManager.LoadScene(Scene);
 
@@ -38,17 +39,89 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
 
             var clientEndpoint = new IPEndPoint(IPAddress.Any, 9999);
 
-            var transportMessage = new TransportMessage(byteWriter.Data, clientEndpoint);
+            var transportMessage = new TestMessage(clientEndpoint, byteWriter.Data);
             
-            transport.AddIncomeMessageToReturn(transportMessage);
+            transport.ProcessMessage(transportMessage);
             
-            yield return new WaitForSeconds(1f);
-            
-            transport.AddIncomeMessageToReturn(null);
-                
             yield return new WaitForSeconds(2f);
             
             Assert.AreEqual(1, serverManager.ConnectedClients.Count);
         }
+
+        [UnityTest]
+        public IEnumerator ClientDisconnectedFromServerTest()
+        {
+            SceneManager.LoadScene(Scene);
+            
+            yield return new WaitForSeconds(2f);
+            
+            yield return ServerUtils.ConnectClientToServer();
+            
+            var serverManager = Object.FindObjectOfType<NetworkServerManager>();
+            var client = serverManager.Clients.First();
+            var transport = Object.FindObjectOfType<TransportMock>();
+            
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientDisconnected);
+            byteWriter.AddInt32(client.Id);
+            byteWriter.AddString("");
+            
+            transport.ProcessMessage(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
+
+            yield return new WaitForSecondsRealtime(2f);
+            
+            Assert.True(serverManager.ConnectedClients.Count == 0);
+        }
+
+        [UnityTest]
+        public IEnumerator DisconnectClientByTimeOutTest()
+        {
+            SceneManager.LoadScene(Scene);
+            
+            yield return new WaitForSeconds(2f);
+            
+            yield return ServerUtils.ConnectClientToServer();
+            
+            var serverManager = Object.FindObjectOfType<NetworkServerManager>();
+            var client = serverManager.Clients.First();
+            var transport = Object.FindObjectOfType<TransportMock>();
+            var timeOut = (float)serverManager.Configuration.ClientTimeOutMilliseconds / 1000f;
+            var pingSendRate = (timeOut / 2f)/1000f;
+            
+            SendPingMessage(transport, client.Id);
+            
+            Assert.AreEqual(1, serverManager.ConnectedClients.Count);
+
+            yield return new WaitForSeconds(pingSendRate);
+         
+            SendPingMessage(transport, client.Id);
+            
+            yield return new WaitForSeconds(pingSendRate);
+            
+            Assert.True(serverManager.ConnectedClients.Count == 1);
+            
+            SendPingMessage(transport, client.Id);
+            
+            yield return new WaitForSeconds(pingSendRate);
+            
+            Assert.True(serverManager.ConnectedClients.Count == 1);
+            
+            yield return new WaitForSeconds(timeOut + 0.5f);
+          
+            Assert.IsEmpty(serverManager.ConnectedClients);
+        }
+
+        private void SendPingMessage(TransportMock transport, int clientId)
+        {
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.Ping);
+            byteWriter.AddInt32(clientId);
+
+            var message = new TestMessage(null, byteWriter.Data);
+            transport.ProcessMessage(message);
+        }
+        
     }
 }

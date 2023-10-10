@@ -34,6 +34,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
         public event Action<int> ClientReady;
         public event Action<int> ClientDisconnected;
         public event Action<int> ClientConnected;
+        public event Action ServerStarted;
         public IServerConfiguration Configuration => networkConfiguration;
 
         private void Start()
@@ -50,6 +51,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Server.Impl
             _server.StartServer();
             
             _running = true;
+            
+            ServerStarted?.Invoke();
         }
 
         public void StopServer() 

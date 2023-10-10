@@ -7,7 +7,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client
     public interface INetworkClientManager
     {
         event Action<int> ClientConnected; 
-        event Action<int> ClientDisconnected; 
+        event Action<int> ClientDisconnected;
+        event Action ClientStarted;
         int Tick { get; }
         NetworkClient LocalClient { get; }
         void StartClient();

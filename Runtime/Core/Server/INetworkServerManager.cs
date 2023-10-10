@@ -15,6 +15,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Server
         event Action<int> ClientReady;
         event Action<int> ClientDisconnected;
         event Action<int> ClientConnected;
+        event Action ServerStarted;
         
         void StartServer();
         void StopServer();

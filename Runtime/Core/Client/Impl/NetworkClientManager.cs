@@ -25,6 +25,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
         public IEnumerable<NetworkClient> Clients => _client.Clients;
         public event Action<int> ClientConnected;
         public event Action<int> ClientDisconnected;
+        public event Action ClientStarted;
         public event Action ClientReady;
         public int Tick => _client.CurrentTick;
         public NetworkClient LocalClient => _client.LocalClient;
@@ -45,6 +46,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Client.Impl
             _client.ClientDisconnected += OnClientDisconnected;
             _client.LocalClientAuthenticated += OnClientAuthenticated;
             _client.Start();
+            
+            ClientStarted?.Invoke();
         }
         
         public void StopClient()

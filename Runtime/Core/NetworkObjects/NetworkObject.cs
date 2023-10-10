@@ -16,7 +16,7 @@ namespace PBUnityMultiplayer.Runtime.Core.NetworkObjects
         public bool Spawned { get; private set; }
         public int OwnerId { get; private set; }
         
-        internal void Spawn(ushort id, int ownerId, bool isLocal)
+        public void Spawn(ushort id, int ownerId, bool isLocal)
         {
             Id = id;
             IsLocalObject = isLocal;

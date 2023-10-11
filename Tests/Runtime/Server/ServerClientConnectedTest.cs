@@ -43,7 +43,15 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             
             transport.ProcessMessage(transportMessage);
             
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(0.2f);
+            byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
+            
+            byteWriter.AddInt32(0);
+            
+            transport.ProcessMessage(new TestMessage(null, byteWriter.Data));
+            yield return new WaitForSeconds(0.2f);
             
             Assert.AreEqual(1, serverManager.ConnectedClients.Count);
         }

@@ -112,6 +112,31 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             Assert.IsEmpty(serverManager.ConnectedClients);
         }
 
+        [UnityTest]
+        public IEnumerator ClientReadyTest()
+        {
+            SceneManager.LoadScene(Scene);
+            
+            yield return new WaitForSeconds(2f);
+            
+            yield return ServerUtils.ConnectClientToServer();
+            
+            var serverManager = Object.FindObjectOfType<NetworkServerManager>();
+            var client = serverManager.Clients.First();
+            var transport = Object.FindObjectOfType<TransportMock>();
+            SendPingMessage(transport, client.Id);
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
+            byteWriter.AddInt32(client.Id);
+            
+            transport.ProcessMessage(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
+
+            yield return new WaitForSecondsRealtime(1f);
+            
+            Assert.True(client.IsReady);
+        }
+
         private void SendPingMessage(TransportMock transport, int clientId)
         {
             var byteWriter = new ByteWriter();

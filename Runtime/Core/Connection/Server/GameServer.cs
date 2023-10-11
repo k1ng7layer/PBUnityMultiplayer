@@ -11,7 +11,6 @@ using PBUnityMultiplayer.Runtime.Helpers;
 using PBUnityMultiplayer.Runtime.Transport.PBUdpTransport.Helpers;
 using PBUnityMultiplayer.Runtime.Utils;
 using PBUnityMultiplayer.Runtime.Utils.IdGenerator;
-using UnityEngine;
 
 namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 {
@@ -246,6 +245,10 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
             client.IsReady = true;
 
+            _pendingClients.Remove(clientId);
+            _clientsTable.Add(client.Id, client);
+            _clients.Add(client);
+            
             var clientEndPoint = (IPEndPoint)client.RemoteEndpoint;
             
             var byteWriter = new ByteWriter();
@@ -347,9 +350,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
             {
                 case EConnectionResult.Success:
                     client.LastMessageReceived = DateTime.Now;
-                    _pendingClients.Remove(id);
-                    _clientsTable.Add(id, client);
-                    _clients.Add(client);
+                    client.IsApproved = true;
                     client.LastMessageReceived = DateTime.Now;
                     var ipEndpoint = (IPEndPoint)remoteEndPoint;
                     byteWriter.AddString(ipEndpoint.Address.ToString());

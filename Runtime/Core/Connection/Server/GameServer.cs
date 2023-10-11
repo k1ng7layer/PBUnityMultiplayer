@@ -369,7 +369,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
                     break;
             }
             
-            SendMessage(client.EndPointHash, byteWriter.Data, ESendMode.Reliable);
+            SendMessage(client.Id, byteWriter.Data, ESendMode.Reliable);
         }
         
         private void ProcessTimeOuts()

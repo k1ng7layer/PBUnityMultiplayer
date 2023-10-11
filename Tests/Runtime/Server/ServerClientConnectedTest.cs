@@ -43,7 +43,15 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             
             transport.ProcessMessage(transportMessage);
             
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(0.2f);
+            byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
+            
+            byteWriter.AddInt32(0);
+            
+            transport.ProcessMessage(new TestMessage(null, byteWriter.Data));
+            yield return new WaitForSeconds(0.2f);
             
             Assert.AreEqual(1, serverManager.ConnectedClients.Count);
         }
@@ -110,6 +118,31 @@ namespace PBUnityMultiplayer.Tests.Runtime.Server
             yield return new WaitForSeconds(timeOut + 0.5f);
           
             Assert.IsEmpty(serverManager.ConnectedClients);
+        }
+
+        [UnityTest]
+        public IEnumerator ClientReadyTest()
+        {
+            SceneManager.LoadScene(Scene);
+            
+            yield return new WaitForSeconds(2f);
+            
+            yield return ServerUtils.ConnectClientToServer();
+            
+            var serverManager = Object.FindObjectOfType<NetworkServerManager>();
+            var client = serverManager.Clients.First();
+            var transport = Object.FindObjectOfType<TransportMock>();
+            SendPingMessage(transport, client.Id);
+            var byteWriter = new ByteWriter();
+              
+            byteWriter.AddUshort((ushort)ENetworkMessageType.ClientReady);
+            byteWriter.AddInt32(client.Id);
+            
+            transport.ProcessMessage(new TestMessage((IPEndPoint)client.RemoteEndpoint, byteWriter.Data));
+
+            yield return new WaitForSecondsRealtime(1f);
+            
+            Assert.True(client.IsReady);
         }
 
         private void SendPingMessage(TransportMock transport, int clientId)

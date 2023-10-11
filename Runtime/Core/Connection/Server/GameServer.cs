@@ -61,10 +61,18 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
 
         public void SendMessage(int clientId, byte[] data, ESendMode sendMode)
         {
-            var hasClient = ClientsTable.TryGetValue(clientId, out var client);
-            
-            if(!hasClient)
-                return;
+            NetworkClient client = null;
+            var hasClient = ClientsTable.TryGetValue(clientId, out var readyClient);
+            var hasPendingClient = _pendingClients.TryGetValue(clientId, out var pendingClient);
+
+            if (hasClient)
+            {
+                client = readyClient;
+            }
+            else if(hasPendingClient)
+            {
+                client = pendingClient;
+            }
             
             _networkTransport.Send(data, client.EndPointHash, sendMode);
         }

@@ -21,6 +21,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         private readonly Dictionary<int, NetworkClient> _networkClientsTable = new();
         private readonly HashSet<NetworkClient> _clients = new();
         private readonly NetworkMessageHandlersService _messageHandlersService = new();
+        private readonly Queue<OutcomePendingMessage> _outcomePendingMessages = new();
+        private readonly Queue<IncomePendingMessage> _incomePendingMessages = new();
         private int _serverEndPointHash;
         private bool _isRunning;
         
@@ -61,7 +63,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             _serverEndPointHash = serverEndPoint.GetHashCode();
             _networkTransport.StartTransport(serverEndPoint);
             
-            _networkTransport.DataReceived += OnDataReceived;
+            _networkTransport.DataReceived += HandleTransportData;
         }
         
         public void ConnectToServer(string password)
@@ -126,6 +128,9 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             
             if(LocalClient != null && LocalClient.IsOnline)
                 SendPing();
+            
+            ReceiveQueue();
+            SendQueue();
         }
 
         public void Send(
@@ -133,7 +138,8 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
             ESendMode sendMode
         )
         {
-            _networkTransport.Send(data, _serverEndPointHash, sendMode);
+            var message = new OutcomePendingMessage(data, _serverEndPointHash, sendMode);
+            _outcomePendingMessages.Enqueue(message);
         }
 
         public void RegisterMessageHandler<T>(Action<T> handler) where T: struct
@@ -149,6 +155,33 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
         private void OnDataReceived(EndPoint endPoint, ArraySegment<byte> data)
         {
             HandleIncomeMessage(data);
+        }
+        
+        private void SendQueue()
+        {
+            while (_outcomePendingMessages.Count > 0)
+            {
+                var msg = _outcomePendingMessages.Dequeue();
+                
+                _networkTransport.Send(msg.Payload, msg.connectionHash, msg.SendMode);
+            }
+        }
+
+        private void ReceiveQueue()
+        {
+            while (_incomePendingMessages.Count > 0)
+            {
+                var msg = _incomePendingMessages.Dequeue();
+
+                HandleIncomeMessage(msg.Payload);
+            }
+        }
+        
+        private void HandleTransportData(EndPoint remoteEndPoint, ArraySegment<byte> data)
+        {
+            var msg = new IncomePendingMessage(data, remoteEndPoint);
+            
+            _incomePendingMessages.Enqueue(msg);
         }
         
         private void HandleIncomeMessage(ArraySegment<byte> data)
@@ -297,7 +330,7 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Client
 
         public void Dispose()
         {
-            _networkTransport.DataReceived -= OnDataReceived;
+            _networkTransport.DataReceived -= HandleTransportData;
             _networkTransport.Stop();
         }
     }

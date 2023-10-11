@@ -277,6 +277,11 @@ namespace PBUnityMultiplayer.Runtime.Core.Connection.Server
         private void HandleNetworkMessage(ArraySegment<byte> data)
         {
             var byteReader = new SegmentByteReader(data, 2);
+            var clientId = byteReader.ReadInt32();
+            
+            if(!_clientsTable.ContainsKey(clientId))
+                return;
+            
             var networkMessageId = byteReader.ReadString(out _);
             var payloadLength = byteReader.ReadInt32();
             var networkMessagePayload = byteReader.ReadBytes(payloadLength);
